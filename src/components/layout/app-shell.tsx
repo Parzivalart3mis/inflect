@@ -22,7 +22,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   if (isImmersiveRoute(pathname)) {
-    return <div className="app-shell min-h-dvh">{children}</div>
+    // Full-screen routes own their own height + safe-area insets. Do NOT add
+    // the `.app-shell` padding here — it would stack on top of the page's
+    // h-dvh and push the bottom controls off-screen by the inset amount.
+    return <>{children}</>
   }
 
   return (
