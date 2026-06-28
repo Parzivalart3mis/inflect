@@ -56,6 +56,9 @@ export function useCoachSession() {
   // Per-turn transcription buffers.
   const userBuf = useRef('')
   const coachBuf = useRef('')
+  // Always-current mirror of the transcript so stop() can save it synchronously
+  // (reading React state via a setter updater isn't committed in time).
+  const transcriptRef = useRef<TranscriptEntryDTO[]>([])
 
   const flushBuffers = useCallback(() => {
     const now = new Date().toISOString()
@@ -78,7 +81,10 @@ export function useCoachSession() {
       entries.push({ role: 'coach', text: coachText, timestamp: now })
     }
 
-    if (entries.length) setTranscript((prev) => [...prev, ...entries])
+    if (entries.length) {
+      transcriptRef.current = [...transcriptRef.current, ...entries]
+      setTranscript(transcriptRef.current)
+    }
     userBuf.current = ''
     coachBuf.current = ''
   }, [])
@@ -138,14 +144,9 @@ export function useCoachSession() {
     setStatus('ending')
     if (sessionId) {
       try {
-        // Read latest transcript from state via functional setter.
-        let snapshot: TranscriptEntryDTO[] = []
-        setTranscript((prev) => {
-          snapshot = prev
-          return prev
-        })
+        // transcriptRef is always current (flushBuffers just updated it).
         await mutateJson(`/api/coach/sessions/${sessionId}`, 'PATCH', {
-          transcript: snapshot.slice(0, 1000),
+          transcript: transcriptRef.current.slice(0, 1000),
           durationSeconds,
         })
       } catch {
@@ -160,6 +161,7 @@ export function useCoachSession() {
     async ({ languageId, sessionGoal, deckIds }: StartParams) => {
       setStatus('connecting')
       setError(null)
+      transcriptRef.current = []
       setTranscript([])
       setSuggestions([])
       intentionalCloseRef.current = false
