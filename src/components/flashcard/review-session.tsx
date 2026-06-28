@@ -2,7 +2,7 @@
 
 import { CheckCircle2, PartyPopper, X } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { toast } from 'sonner'
 
@@ -37,15 +37,28 @@ export function ReviewSession({
   const [flipped, setFlipped] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [reviewed, setReviewed] = useState(0)
+  // Initialize the working queue ONCE so a background SWR revalidation can't
+  // snap the user back to the first card mid-session.
+  const initialized = useRef(false)
 
   useEffect(() => {
-    if (data?.cards) {
+    if (!initialized.current && data?.cards) {
+      initialized.current = true
       setQueue(data.cards)
       setIndex(0)
       setFlipped(false)
       setReviewed(0)
     }
   }, [data])
+
+  // "Check for more" — explicitly refetch the due queue and start fresh.
+  async function restart() {
+    setReviewed(0)
+    const fresh = await mutate()
+    setIndex(0)
+    setFlipped(false)
+    setQueue(fresh?.cards ?? [])
+  }
 
   const total = queue?.length ?? 0
   const current = queue && index < total ? queue[index] : null
@@ -152,7 +165,12 @@ export function ReviewSession({
             />
 
             {flipped ? (
-              <SRSButtons onRate={rate} disabled={submitting} />
+              <div className="space-y-2">
+                <SRSButtons onRate={rate} disabled={submitting} />
+                <p className="text-muted-foreground text-center text-xs">
+                  Rate how well you knew it — the next card loads automatically.
+                </p>
+              </div>
             ) : (
               <Button
                 size="lg"
@@ -182,7 +200,7 @@ export function ReviewSession({
               </Button>
               <Button
                 className="bg-cta text-cta-foreground hover:bg-cta/90"
-                onClick={() => mutate()}
+                onClick={restart}
               >
                 Check for more
               </Button>

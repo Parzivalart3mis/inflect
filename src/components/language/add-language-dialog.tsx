@@ -95,6 +95,16 @@ export function AddLanguageDialog({
             <Select
               value={choice}
               onValueChange={(v) => v && setChoice(v)}
+              // Base UI: items map lets SelectValue show the label, not the code.
+              items={{
+                ...Object.fromEntries(
+                  LOCALE_OPTIONS.map((o) => [
+                    o.localeCode,
+                    `${o.flagEmoji} ${o.name}`,
+                  ]),
+                ),
+                [CUSTOM]: 'Other…',
+              }}
             >
               <SelectTrigger id="lang" className="w-full">
                 <SelectValue />

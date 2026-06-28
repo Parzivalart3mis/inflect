@@ -128,6 +128,12 @@ export function CreateCardDialog({
             <Select
               value={effectiveChoice}
               onValueChange={(v) => v && setDeckChoice(v)}
+              // Base UI: SelectValue shows the label (not the raw id) only when
+              // Root is given an items map.
+              items={{
+                ...Object.fromEntries((decks ?? []).map((d) => [d.id, d.name])),
+                [NEW_DECK]: '+ New deck…',
+              }}
             >
               <SelectTrigger id="card-deck" className="w-full">
                 <SelectValue placeholder="Choose a deck" />
