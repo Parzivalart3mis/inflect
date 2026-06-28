@@ -164,9 +164,9 @@ export default function CoachSessionPage() {
   const errored = coach.status === 'error'
 
   return (
-    <div className="relative flex min-h-dvh flex-col bg-[#1C1410] text-[#F0E6D8]">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-[#1C1410] text-[#F0E6D8]">
       {/* Video / avatar area */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
         <video
           ref={videoRef}
           playsInline
@@ -179,20 +179,27 @@ export default function CoachSessionPage() {
 
         {!cameraOn && (
           <div className="flex flex-col items-center gap-4">
-            <div
-              className={cn(
-                'flex size-28 items-center justify-center rounded-full bg-[#E8943A]/20',
-                coach.status === 'live' && 'animate-pulse',
+            <div className="relative flex size-28 items-center justify-center">
+              {/* Live input-level ring — grows as you speak */}
+              {coach.status === 'live' && !coach.micMuted && (
+                <span
+                  className="absolute inset-0 rounded-full bg-[#E8943A]/25 transition-transform duration-100 ease-out"
+                  style={{ transform: `scale(${1 + coach.micLevel * 0.6})` }}
+                  aria-hidden
+                />
               )}
-            >
-              <Mic className="size-12 text-[#E8943A]" aria-hidden />
+              <div className="relative flex size-28 items-center justify-center rounded-full bg-[#E8943A]/20">
+                <Mic className="size-12 text-[#E8943A]" aria-hidden />
+              </div>
             </div>
             <p className="text-sm text-[#F0E6D8]/70">
               {connecting
                 ? 'Connecting to your coach…'
-                : coach.status === 'live'
-                  ? 'Listening — speak naturally'
-                  : ''}
+                : coach.micMuted
+                  ? 'Muted'
+                  : coach.status === 'live'
+                    ? 'Listening — speak naturally'
+                    : ''}
             </p>
           </div>
         )}
@@ -234,7 +241,7 @@ export default function CoachSessionPage() {
       )}
 
       {/* Live transcript */}
-      <div className="max-h-40 overflow-y-auto border-t border-white/10 px-4 py-3">
+      <div className="max-h-40 shrink-0 overflow-y-auto border-t border-white/10 px-4 py-3">
         {coach.transcript.length === 0 ? (
           <p className="text-center text-xs text-[#F0E6D8]/40">
             Transcript will appear here…
@@ -260,7 +267,10 @@ export default function CoachSessionPage() {
       </div>
 
       {/* Controls */}
-      <div className="coach-ui flex items-center justify-center gap-4 border-t border-white/10 px-6 pb-6 pt-4">
+      <div
+        className="flex shrink-0 items-center justify-center gap-4 border-t border-white/10 px-6 pt-4"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 1.5rem)' }}
+      >
         <ControlButton
           active={!coach.micMuted}
           onClick={coach.toggleMute}

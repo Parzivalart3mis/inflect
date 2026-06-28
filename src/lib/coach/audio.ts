@@ -7,6 +7,14 @@
 export const INPUT_SAMPLE_RATE = 16000
 export const OUTPUT_SAMPLE_RATE = 24000
 
+function getAudioContextCtor(): typeof AudioContext {
+  return (
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext: typeof AudioContext })
+      .webkitAudioContext
+  )
+}
+
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   let binary = ''
   const bytes = new Uint8Array(buffer)
@@ -59,36 +67,69 @@ function downsample(
   return result
 }
 
-/** Captures the microphone and emits base64 PCM16 @ 16 kHz chunks. */
+/**
+ * Captures the microphone. `acquire()` must be called from within the user
+ * gesture (it opens the mic and resumes the AudioContext, which iOS requires).
+ * Audio is only streamed once `setSender()` is wired up after the Live socket
+ * connects. Reports input level for a "listening" indicator.
+ */
 export class MicCapture {
   private ctx: AudioContext | null = null
   private stream: MediaStream | null = null
   private source: MediaStreamAudioSourceNode | null = null
   private processor: ScriptProcessorNode | null = null
+  private sink: GainNode | null = null
+  private sender: ((base64: string) => void) | null = null
+  private lastLevelAt = 0
 
-  constructor(private onChunk: (base64: string) => void) {}
+  constructor(private onLevel?: (level: number) => void) {}
 
-  async start(): Promise<void> {
+  async acquire(): Promise<void> {
     this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
     })
-    const Ctx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext })
-        .webkitAudioContext
-    this.ctx = new Ctx()
+
+    this.ctx = new (getAudioContextCtor())()
+    // iOS Safari starts contexts suspended — resume inside the gesture.
+    if (this.ctx.state === 'suspended') await this.ctx.resume()
+
     this.source = this.ctx.createMediaStreamSource(this.stream)
     this.processor = this.ctx.createScriptProcessor(4096, 1, 1)
+    // Zero-gain sink keeps the processor running without echoing to speakers.
+    this.sink = this.ctx.createGain()
+    this.sink.gain.value = 0
 
     this.processor.onaudioprocess = (e) => {
       const input = e.inputBuffer.getChannelData(0)
-      const down = downsample(input, this.ctx!.sampleRate, INPUT_SAMPLE_RATE)
-      const pcm = float32ToPcm16(down)
-      this.onChunk(arrayBufferToBase64(pcm))
+
+      if (this.onLevel) {
+        const now = performance.now()
+        if (now - this.lastLevelAt > 80) {
+          this.lastLevelAt = now
+          let sum = 0
+          for (let i = 0; i < input.length; i++) sum += input[i] * input[i]
+          this.onLevel(Math.min(1, Math.sqrt(sum / input.length) * 4))
+        }
+      }
+
+      if (this.sender) {
+        const down = downsample(input, this.ctx!.sampleRate, INPUT_SAMPLE_RATE)
+        this.sender(arrayBufferToBase64(float32ToPcm16(down)))
+      }
     }
 
     this.source.connect(this.processor)
-    this.processor.connect(this.ctx.destination)
+    this.processor.connect(this.sink)
+    this.sink.connect(this.ctx.destination)
+  }
+
+  /** Begin streaming chunks to the Live socket. */
+  setSender(sender: (base64: string) => void) {
+    this.sender = sender
   }
 
   setMuted(muted: boolean) {
@@ -96,12 +137,15 @@ export class MicCapture {
   }
 
   stop(): void {
+    this.sender = null
     this.processor?.disconnect()
     this.source?.disconnect()
+    this.sink?.disconnect()
     this.stream?.getTracks().forEach((t) => t.stop())
     void this.ctx?.close()
     this.processor = null
     this.source = null
+    this.sink = null
     this.stream = null
     this.ctx = null
   }
@@ -114,13 +158,7 @@ export class PcmPlayer {
   private sources = new Set<AudioBufferSourceNode>()
 
   private ensureCtx(): AudioContext {
-    if (!this.ctx) {
-      const Ctx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext })
-          .webkitAudioContext
-      this.ctx = new Ctx()
-    }
+    if (!this.ctx) this.ctx = new (getAudioContextCtor())()
     return this.ctx
   }
 

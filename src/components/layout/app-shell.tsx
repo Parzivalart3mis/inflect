@@ -1,5 +1,6 @@
 'use client'
 
+import { UserButton } from '@clerk/nextjs'
 import { Settings } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -39,6 +40,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Settings className="size-5" />
             </Button>
+            <UserButton
+              appearance={{
+                elements: { avatarBox: 'size-8' },
+              }}
+            />
           </div>
         </div>
       </header>

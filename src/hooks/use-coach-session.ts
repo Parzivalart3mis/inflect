@@ -43,6 +43,7 @@ export function useCoachSession() {
   const [micMuted, setMicMuted] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [micLevel, setMicLevel] = useState(0)
 
   const sessionRef = useRef<Session | null>(null)
   const micRef = useRef<MicCapture | null>(null)
@@ -50,6 +51,7 @@ export function useCoachSession() {
   const sessionIdRef = useRef<string | null>(null)
   const startTimeRef = useRef<number>(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const intentionalCloseRef = useRef(false)
 
   // Per-turn transcription buffers.
   const userBuf = useRef('')
@@ -85,6 +87,9 @@ export function useCoachSession() {
     (message: LiveServerMessage) => {
       const content = message.serverContent
 
+      // Config acknowledged — the coach is truly ready.
+      if (message.setupComplete) setStatus('live')
+
       // Streamed audio from the model.
       const audio = message.data
       if (audio) playerRef.current?.enqueue(audio)
@@ -106,6 +111,7 @@ export function useCoachSession() {
   )
 
   const stop = useCallback(async (): Promise<string | null> => {
+    intentionalCloseRef.current = true
     if (timerRef.current) clearInterval(timerRef.current)
     timerRef.current = null
 
@@ -113,6 +119,7 @@ export function useCoachSession() {
     playerRef.current?.stop()
     micRef.current = null
     playerRef.current = null
+    setMicLevel(0)
 
     flushBuffers()
 
@@ -155,11 +162,18 @@ export function useCoachSession() {
       setError(null)
       setTranscript([])
       setSuggestions([])
+      intentionalCloseRef.current = false
       try {
-        // 1. Unlock audio first, inside the user gesture that called start().
+        // 1. Unlock audio AND open the mic inside the user gesture — iOS only
+        //    allows getUserMedia + AudioContext.resume() from a gesture, so do
+        //    both before any network round-trip (which would break the chain).
         const player = new PcmPlayer()
         await player.resume()
         playerRef.current = player
+
+        const mic = new MicCapture((lvl) => setMicLevel(lvl))
+        await mic.acquire()
+        micRef.current = mic
 
         // 2. Create the session record.
         const { sessionId } = await mutateJson<{ sessionId: string }>(
@@ -188,12 +202,16 @@ export function useCoachSession() {
           callbacks: {
             onopen: () => setStatus('live'),
             onmessage: handleMessage,
-            onerror: () => {
-              setError('Connection error with the coach.')
+            onerror: (e: ErrorEvent) => {
+              setError(e?.message || 'Connection error with the coach.')
               setStatus('error')
             },
-            onclose: () => {
-              if (sessionRef.current) setStatus('ended')
+            onclose: (e: CloseEvent) => {
+              if (intentionalCloseRef.current) return
+              setError(
+                e?.reason || 'The coach disconnected. Go back and try again.',
+              )
+              setStatus('error')
             },
           },
           config: {
@@ -205,8 +223,8 @@ export function useCoachSession() {
         })
         sessionRef.current = session
 
-        // 5. Start streaming the microphone.
-        const mic = new MicCapture((base64) => {
+        // 5. Now that the socket is open, stream mic audio to the model.
+        mic.setSender((base64) => {
           try {
             session.sendRealtimeInput({
               audio: { data: base64, mimeType: 'audio/pcm;rate=16000' },
@@ -215,8 +233,6 @@ export function useCoachSession() {
             // socket may be closing
           }
         })
-        await mic.start()
-        micRef.current = mic
 
         startTimeRef.current = Date.now()
         setElapsed(0)
@@ -231,6 +247,8 @@ export function useCoachSession() {
         setStatus('error')
         micRef.current?.stop()
         playerRef.current?.stop()
+        micRef.current = null
+        playerRef.current = null
       }
     },
     [handleMessage],
@@ -261,6 +279,7 @@ export function useCoachSession() {
   // Cleanup on unmount.
   useEffect(() => {
     return () => {
+      intentionalCloseRef.current = true
       if (timerRef.current) clearInterval(timerRef.current)
       micRef.current?.stop()
       playerRef.current?.stop()
@@ -279,6 +298,7 @@ export function useCoachSession() {
     error,
     micMuted,
     elapsed,
+    micLevel,
     sessionId,
     start,
     stop,

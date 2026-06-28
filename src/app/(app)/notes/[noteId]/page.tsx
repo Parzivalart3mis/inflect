@@ -97,7 +97,7 @@ export default function NoteEditorPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 variant="destructive"
-                onSelect={deleteNote}
+                onClick={deleteNote}
               >
                 <Trash2 className="size-4" />
                 Delete note

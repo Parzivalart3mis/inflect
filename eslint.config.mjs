@@ -20,6 +20,16 @@ const eslintConfig = defineConfig([
       // The "mounted" hydration guard and SWR-data->state syncing are
       // intentional and correct; keep them as warnings, not errors.
       "react-hooks/set-state-in-effect": "warn",
+      // Base UI (shadcn base-nova) menu items fire onClick, NOT onSelect.
+      // onSelect is a text-selection event and silently won't fire on tap.
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector: "JSXAttribute[name.name='onSelect']",
+          message:
+            "Base UI menu items use onClick, not onSelect — onSelect is a text-selection event and won't fire on click.",
+        },
+      ],
     },
   },
 ]);

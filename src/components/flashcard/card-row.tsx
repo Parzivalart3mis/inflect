@@ -106,11 +106,11 @@ export function CardRow({
             <MoreVertical className="size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+            <DropdownMenuItem onClick={() => setEditOpen(true)}>
               <Pencil className="size-4" />
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={togglePin}>
+            <DropdownMenuItem onClick={togglePin}>
               {card.isPinned ? (
                 <>
                   <PinOff className="size-4" />
@@ -123,7 +123,7 @@ export function CardRow({
                 </>
               )}
             </DropdownMenuItem>
-            <DropdownMenuItem variant="destructive" onSelect={remove}>
+            <DropdownMenuItem variant="destructive" onClick={remove}>
               <Trash2 className="size-4" />
               Delete
             </DropdownMenuItem>

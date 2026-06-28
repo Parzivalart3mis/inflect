@@ -90,11 +90,11 @@ export default function DeckDetailPage() {
               <MoreVertical className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>
                 <Pencil className="size-4" />
                 Edit deck
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setBulkOpen(true)}>
+              <DropdownMenuItem onClick={() => setBulkOpen(true)}>
                 <Upload className="size-4" />
                 Bulk import
               </DropdownMenuItem>
@@ -105,7 +105,7 @@ export default function DeckDetailPage() {
                 Export CSV
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onSelect={deleteDeck}>
+              <DropdownMenuItem variant="destructive" onClick={deleteDeck}>
                 <Trash2 className="size-4" />
                 Delete deck
               </DropdownMenuItem>

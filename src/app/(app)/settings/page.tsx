@@ -1,7 +1,8 @@
 'use client'
 
-import { SignOutButton } from '@clerk/nextjs'
+import { SignOutButton, useUser } from '@clerk/nextjs'
 import { Check, LogOut, Plus, Trash2 } from 'lucide-react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -25,6 +26,7 @@ import type { LanguageDTO } from '@/types/dto'
 
 export default function SettingsPage() {
   const router = useRouter()
+  const { user } = useUser()
   const { languages, activeLanguageId, setActiveLanguage } = useLanguage()
   const [addOpen, setAddOpen] = useState(false)
   const [toDelete, setToDelete] = useState<LanguageDTO | null>(null)
@@ -114,6 +116,31 @@ export default function SettingsPage() {
       {/* Account */}
       <section>
         <h2 className="font-heading mb-2 font-semibold">Account</h2>
+        <div className="border-border bg-card mb-2 flex items-center gap-3 rounded-xl border p-4">
+          {user?.imageUrl ? (
+            <Image
+              src={user.imageUrl}
+              alt=""
+              width={48}
+              height={48}
+              className="size-12 rounded-full object-cover"
+            />
+          ) : (
+            <span className="bg-muted text-muted-foreground flex size-12 items-center justify-center rounded-full text-lg font-semibold">
+              {(user?.firstName ?? user?.primaryEmailAddress?.emailAddress ?? '?')
+                .charAt(0)
+                .toUpperCase()}
+            </span>
+          )}
+          <div className="min-w-0">
+            {user?.fullName && (
+              <p className="truncate font-medium">{user.fullName}</p>
+            )}
+            <p className="text-muted-foreground truncate text-sm">
+              {user?.primaryEmailAddress?.emailAddress ?? ''}
+            </p>
+          </div>
+        </div>
         <SignOutButton>
           <button
             className={cn(

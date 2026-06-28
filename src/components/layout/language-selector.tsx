@@ -47,7 +47,7 @@ export function LanguageSelector() {
         {languages.map((lang) => (
           <DropdownMenuItem
             key={lang.id}
-            onSelect={() => setActiveLanguage(lang.id)}
+            onClick={() => setActiveLanguage(lang.id)}
             className="gap-2"
           >
             <span className="text-base leading-none" aria-hidden>
@@ -63,7 +63,7 @@ export function LanguageSelector() {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => router.push('/settings')}>
+        <DropdownMenuItem onClick={() => router.push('/settings')}>
           <Plus className="size-4" />
           Add or manage languages
         </DropdownMenuItem>
