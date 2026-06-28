@@ -29,8 +29,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="app-shell flex min-h-dvh flex-col">
-      <header className="border-border bg-background/90 sticky top-0 z-30 border-b backdrop-blur">
+    <div className="flex min-h-dvh flex-col">
+      <header
+        className="border-border bg-background/90 sticky top-0 z-30 border-b backdrop-blur"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between gap-2 px-4">
           <Wordmark className="text-xl" />
           <div className="flex items-center gap-1.5">
