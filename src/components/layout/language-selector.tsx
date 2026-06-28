@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -38,30 +39,33 @@ export function LanguageSelector() {
         <ChevronsUpDown className="text-muted-foreground size-3.5" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
-        {languages.length === 0 && (
-          <p className="text-muted-foreground px-2 py-1.5 text-xs">
-            No languages yet.
-          </p>
-        )}
-        {languages.map((lang) => (
-          <DropdownMenuItem
-            key={lang.id}
-            onClick={() => setActiveLanguage(lang.id)}
-            className="gap-2"
-          >
-            <span className="text-base leading-none" aria-hidden>
-              {lang.flagEmoji}
-            </span>
-            <span className="flex-1 truncate">{lang.name}</span>
-            <Check
-              className={cn(
-                'size-4',
-                lang.id === activeLanguage?.id ? 'opacity-100' : 'opacity-0',
-              )}
-            />
-          </DropdownMenuItem>
-        ))}
+        {/* Base UI: GroupLabel must live inside a Group. */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+          {languages.length === 0 && (
+            <p className="text-muted-foreground px-2 py-1.5 text-xs">
+              No languages yet.
+            </p>
+          )}
+          {languages.map((lang) => (
+            <DropdownMenuItem
+              key={lang.id}
+              onClick={() => setActiveLanguage(lang.id)}
+              className="gap-2"
+            >
+              <span className="text-base leading-none" aria-hidden>
+                {lang.flagEmoji}
+              </span>
+              <span className="flex-1 truncate">{lang.name}</span>
+              <Check
+                className={cn(
+                  'size-4',
+                  lang.id === activeLanguage?.id ? 'opacity-100' : 'opacity-0',
+                )}
+              />
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => router.push('/settings')}>
           <Plus className="size-4" />

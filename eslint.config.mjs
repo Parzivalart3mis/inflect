@@ -29,6 +29,11 @@ const eslintConfig = defineConfig([
           message:
             "Base UI menu items use onClick, not onSelect — onSelect is a text-selection event and won't fire on click.",
         },
+        {
+          selector: "JSXOpeningElement[name.name='DropdownMenuLabel']",
+          message:
+            "DropdownMenuLabel renders Base UI GroupLabel and MUST be wrapped in a DropdownMenuGroup, or it throws at runtime when the menu opens.",
+        },
       ],
     },
   },
