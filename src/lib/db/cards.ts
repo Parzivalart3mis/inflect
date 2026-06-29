@@ -1,7 +1,7 @@
 import { and, desc, eq } from 'drizzle-orm'
 
 import type { Bucket } from '@/lib/srs/sm2'
-import type { BucketCounts, CardDTO, DeckDTO } from '@/types/dto'
+import type { BucketCounts, CardDTO, DeckDTO, DeckKind } from '@/types/dto'
 
 import { db } from './index'
 import { decks, flashcards, srsProgress } from './schema'
@@ -20,10 +20,15 @@ export function endOfToday(now: Date = new Date()): Date {
   return d
 }
 
-export function toCardDTO(card: CardRow, srs: SrsRow | null): CardDTO {
+export function toCardDTO(
+  card: CardRow,
+  srs: SrsRow | null,
+  deckKind: DeckKind = 'grammar',
+): CardDTO {
   return {
     id: card.id,
     deckId: card.deckId,
+    deckKind,
     front: card.front,
     back: card.back,
     hasException: card.hasException ?? card.back != null,
@@ -87,6 +92,7 @@ export async function listDecks(
         languageId: row.deck.languageId,
         name: row.deck.name,
         description: row.deck.description,
+        kind: row.deck.kind,
         cardCount: 0,
         dueToday: 0,
         buckets: emptyBuckets(),
@@ -111,13 +117,14 @@ export async function listDeckCards(
   deckId: string,
 ): Promise<CardDTO[]> {
   const rows = await db
-    .select({ card: flashcards, srs: srsProgress })
+    .select({ card: flashcards, srs: srsProgress, kind: decks.kind })
     .from(flashcards)
+    .innerJoin(decks, eq(flashcards.deckId, decks.id))
     .leftJoin(srsProgress, eq(srsProgress.cardId, flashcards.id))
     .where(and(eq(flashcards.deckId, deckId), eq(flashcards.userId, userId)))
     .orderBy(desc(flashcards.createdAt))
 
-  return rows.map((r) => toCardDTO(r.card, r.srs))
+  return rows.map((r) => toCardDTO(r.card, r.srs, r.kind))
 }
 
 /** Recompute and persist a deck's denormalized card_count. */
@@ -172,7 +179,11 @@ export async function insertCard(input: InsertCardInput): Promise<CardDTO> {
     .returning()
 
   await recountDeck(input.deckId)
-  return toCardDTO(card, srs)
+  const [deck] = await db
+    .select({ kind: decks.kind })
+    .from(decks)
+    .where(eq(decks.id, input.deckId))
+  return toCardDTO(card, srs, deck?.kind ?? 'grammar')
 }
 
 /** Bulk insert cards (and their SRS rows) into a single deck. */
@@ -212,5 +223,12 @@ export async function insertCardsBulk(
 
   const srsByCard = new Map(srsRows.map((s) => [s.cardId, s]))
   await recountDeck(deckId)
-  return inserted.map((card) => toCardDTO(card, srsByCard.get(card.id) ?? null))
+  const [deck] = await db
+    .select({ kind: decks.kind })
+    .from(decks)
+    .where(eq(decks.id, deckId))
+  const kind = deck?.kind ?? 'grammar'
+  return inserted.map((card) =>
+    toCardDTO(card, srsByCard.get(card.id) ?? null, kind),
+  )
 }

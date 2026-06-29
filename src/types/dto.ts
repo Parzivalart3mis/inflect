@@ -2,6 +2,9 @@ import type { Bucket, Rating } from '@/lib/srs/sm2'
 
 export type { Bucket, Rating }
 
+export type DeckKind = 'grammar' | 'vocab'
+export type CoachMode = 'conversation' | 'coach'
+
 export interface BucketCounts {
   new: number
   learning: number
@@ -23,6 +26,7 @@ export interface DeckDTO {
   languageId: string
   name: string
   description: string | null
+  kind: DeckKind
   cardCount: number
   dueToday: number
   buckets: BucketCounts
@@ -42,6 +46,7 @@ export interface SrsDTO {
 export interface CardDTO {
   id: string
   deckId: string
+  deckKind: DeckKind
   front: string
   back: string | null
   hasException: boolean
@@ -72,6 +77,7 @@ export interface ReviewResultDTO {
 export interface CoachSessionDTO {
   id: string
   goal: string | null
+  mode: CoachMode
   durationSeconds: number | null
   cardsCreated: number
   startedAt: string

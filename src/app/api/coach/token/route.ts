@@ -46,6 +46,7 @@ export const POST = route(async (request: Request) => {
     cards,
     notes,
     sessionGoal: body.sessionGoal,
+    mode: body.mode,
   })
 
   const model =

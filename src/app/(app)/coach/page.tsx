@@ -14,13 +14,14 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { formatMinutes, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { CoachSessionDTO, DeckDTO } from '@/types/dto'
+import type { CoachMode, CoachSessionDTO, DeckDTO } from '@/types/dto'
 
 export default function CoachPage() {
   const router = useRouter()
   const { activeLanguage, activeLanguageId } = useLanguage()
   const [goal, setGoal] = useState('')
   const [selected, setSelected] = useState<string[]>([])
+  const [mode, setMode] = useState<CoachMode>('conversation')
 
   const { data: decks } = useSWR<DeckDTO[]>(
     activeLanguageId ? `/api/decks?languageId=${activeLanguageId}` : null,
@@ -41,6 +42,7 @@ export default function CoachPage() {
 
   function startSession() {
     const params = new URLSearchParams()
+    params.set('mode', mode)
     if (goal.trim()) params.set('goal', goal.trim())
     if (selected.length) params.set('decks', selected.join(','))
     router.push(`/coach/session?${params.toString()}`)
@@ -63,9 +65,57 @@ export default function CoachPage() {
             <Sparkles className="size-5" aria-hidden />
           </span>
           <p className="text-sm">
-            Your coach knows every rule and note in{' '}
+            Powered by every rule and note in{' '}
             <span className="font-medium">{activeLanguage?.name}</span>.
           </p>
+        </div>
+
+        <div className="grid gap-2">
+          <Label>Mode</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                {
+                  value: 'conversation',
+                  title: 'Conversation',
+                  desc: `Speak only in ${activeLanguage?.name ?? 'the language'}`,
+                },
+                {
+                  value: 'coach',
+                  title: 'Coach',
+                  desc: 'Learn & ask in English',
+                },
+              ] as const
+            ).map((opt) => {
+              const on = mode === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setMode(opt.value)}
+                  aria-pressed={on}
+                  className={cn(
+                    'flex flex-col gap-0.5 rounded-xl border p-3 text-left transition-colors',
+                    on
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border bg-background hover:bg-accent',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'text-sm font-semibold',
+                      on ? 'text-primary' : 'text-foreground',
+                    )}
+                  >
+                    {opt.title}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {opt.desc}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <div className="grid gap-2">
@@ -135,8 +185,13 @@ export default function CoachPage() {
                 className="border-border bg-card hover:border-primary/40 block rounded-xl border p-4 transition-colors"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="line-clamp-1 text-sm font-medium">
-                    {s.goal || 'Open practice'}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="bg-secondary text-secondary-foreground shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize">
+                      {s.mode}
+                    </span>
+                    <span className="line-clamp-1 text-sm font-medium">
+                      {s.goal || 'Open practice'}
+                    </span>
                   </span>
                   <span className="text-muted-foreground shrink-0 text-xs">
                     {formatDate(s.startedAt)}

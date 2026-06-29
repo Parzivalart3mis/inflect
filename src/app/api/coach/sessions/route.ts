@@ -31,6 +31,7 @@ export const POST = route(async (request: Request) => {
       userId: user.id,
       languageId: body.languageId,
       goal: body.goal,
+      mode: body.mode ?? 'coach',
     })
     .returning({ id: coachSessions.id })
 

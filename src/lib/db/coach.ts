@@ -60,6 +60,7 @@ export function toSessionDTO(row: CoachSession): CoachSessionDTO {
   return {
     id: row.id,
     goal: row.goal,
+    mode: row.mode,
     durationSeconds: row.durationSeconds,
     cardsCreated: row.cardsCreated,
     startedAt: row.startedAt.toISOString(),

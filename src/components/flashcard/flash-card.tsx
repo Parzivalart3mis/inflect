@@ -6,12 +6,15 @@ import { useState } from 'react'
 
 import { isTTSAvailable, speak } from '@/lib/tts/speak'
 import { cn } from '@/lib/utils'
+import type { DeckKind } from '@/types/dto'
 
 interface Props {
   front: string
   back?: string | null
   hasException: boolean
   localeCode: string
+  /** 'vocab' relabels the back as Pronunciation and hides the ! badge. */
+  kind?: DeckKind
   /** Controlled flip state (review session). Omit for self-managed flip. */
   flipped?: boolean
   onFlipChange?: (flipped: boolean) => void
@@ -23,6 +26,7 @@ export function FlashCard({
   back,
   hasException,
   localeCode,
+  kind = 'grammar',
   flipped: controlledFlipped,
   onFlipChange,
   className,
@@ -30,6 +34,7 @@ export function FlashCard({
   const [internalFlipped, setInternalFlipped] = useState(false)
   const flipped = controlledFlipped ?? internalFlipped
   const ttsAvailable = isTTSAvailable()
+  const isVocab = kind === 'vocab'
 
   function toggle() {
     if (onFlipChange) onFlipChange(!flipped)
@@ -41,6 +46,9 @@ export function FlashCard({
     speak(text, localeCode)
   }
 
+  const frontAria = isVocab ? 'Showing word' : 'Showing rule'
+  const backAria = isVocab ? 'Showing pronunciation' : 'Showing exception'
+
   return (
     <div
       className={cn(
@@ -50,7 +58,7 @@ export function FlashCard({
       onClick={toggle}
       role="button"
       tabIndex={0}
-      aria-label={flipped ? 'Showing exception. Tap to flip back.' : 'Showing rule. Tap to flip.'}
+      aria-label={flipped ? `${backAria}. Tap to flip back.` : `${frontAria}. Tap to flip.`}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
           e.preventDefault()
@@ -58,8 +66,8 @@ export function FlashCard({
         }
       }}
     >
-      {/* Exception badge — indicator only, not a flip trigger */}
-      {hasException && (
+      {/* Exception badge — grammar cards only (vocab always has a back) */}
+      {hasException && !isVocab && (
         <div
           className="bg-exception pointer-events-none absolute right-3 top-3 z-20 flex size-7 items-center justify-center rounded-full border-2 border-white text-sm font-bold text-white shadow-md"
           aria-label="This card has an exception"
@@ -73,7 +81,7 @@ export function FlashCard({
         animate={{ rotateY: flipped ? 180 : 0 }}
         transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
       >
-        {/* Front — Rule */}
+        {/* Front — Rule / Word */}
         <div className="backface-hidden bg-card absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl border border-border p-6 shadow-md">
           <p
             className="flashcard-content text-center text-lg font-medium text-card-foreground"
@@ -92,17 +100,18 @@ export function FlashCard({
           )}
         </div>
 
-        {/* Back — Exception */}
-        <div
-          className="backface-hidden bg-primary absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl p-6 shadow-md [transform:rotateY(180deg)]"
-        >
+        {/* Back — Exception / Pronunciation */}
+        <div className="backface-hidden bg-primary absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-2xl p-6 shadow-md [transform:rotateY(180deg)]">
+          <span className="text-primary-foreground/60 text-[11px] font-semibold tracking-wide uppercase">
+            {isVocab ? 'Pronunciation' : 'Exception'}
+          </span>
           <p
             className="flashcard-content text-primary-foreground text-center text-base font-medium"
             dir="auto"
           >
-            {back ?? 'No exception'}
+            {back ?? (isVocab ? 'No pronunciation added' : 'No exception')}
           </p>
-          {back && ttsAvailable && (
+          {back && !isVocab && ttsAvailable && (
             <button
               onClick={(e) => handleSpeak(back, e)}
               className="mt-1 rounded-full p-2 opacity-60 transition-opacity hover:opacity-100"

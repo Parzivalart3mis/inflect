@@ -40,6 +40,10 @@ export const ratingEnum = pgEnum('srs_rating', [
 
 export const transcriptRoleEnum = pgEnum('transcript_role', ['user', 'coach'])
 
+export const deckKindEnum = pgEnum('deck_kind', ['grammar', 'vocab'])
+
+export const coachModeEnum = pgEnum('coach_mode', ['conversation', 'coach'])
+
 // ---------------------------------------------------------------------------
 // users — keyed by Clerk user id (text). Synced via Clerk webhook.
 // ---------------------------------------------------------------------------
@@ -90,6 +94,7 @@ export const decks = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     description: text('description'),
+    kind: deckKindEnum('kind').notNull().default('grammar'),
     cardCount: integer('card_count').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
@@ -155,6 +160,7 @@ export const coachSessions = pgTable(
       .notNull()
       .references(() => languages.id, { onDelete: 'cascade' }),
     goal: text('goal'),
+    mode: coachModeEnum('mode').notNull().default('coach'),
     transcript: jsonb('transcript')
       .$type<TranscriptEntry[]>()
       .notNull()

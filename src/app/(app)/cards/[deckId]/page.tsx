@@ -129,8 +129,13 @@ export default function DeckDetailPage() {
       {data && (
         <>
           <div className="pt-4 pb-3">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            <h1 className="font-heading flex items-center gap-2 text-2xl font-semibold tracking-tight">
               {data.deck.name}
+              {data.deck.kind === 'vocab' && (
+                <span className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-[11px] font-medium">
+                  Vocab
+                </span>
+              )}
             </h1>
             {data.deck.description && (
               <p className="text-muted-foreground mt-0.5 text-sm">

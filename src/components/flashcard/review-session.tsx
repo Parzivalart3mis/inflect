@@ -159,6 +159,7 @@ export function ReviewSession({
               front={current.front}
               back={current.back}
               hasException={current.hasException}
+              kind={current.deckKind}
               localeCode={localeCode}
               flipped={flipped}
               onFlipChange={setFlipped}

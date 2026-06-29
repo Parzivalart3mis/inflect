@@ -51,7 +51,7 @@ export function CardRow({
   return (
     <div className="border-border bg-card flex items-start gap-3 rounded-xl border p-3">
       <div className="flex flex-col items-center gap-1.5 pt-0.5">
-        {card.hasException ? (
+        {card.hasException && card.deckKind !== 'vocab' ? (
           <span
             className="bg-exception flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
             aria-label="Has an exception"

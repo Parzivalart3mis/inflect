@@ -33,6 +33,7 @@ export interface StartParams {
   languageId: string
   sessionGoal?: string
   deckIds?: string[]
+  mode?: 'conversation' | 'coach'
 }
 
 export function useCoachSession() {
@@ -158,7 +159,7 @@ export function useCoachSession() {
   }, [flushBuffers])
 
   const start = useCallback(
-    async ({ languageId, sessionGoal, deckIds }: StartParams) => {
+    async ({ languageId, sessionGoal, deckIds, mode }: StartParams) => {
       setStatus('connecting')
       setError(null)
       transcriptRef.current = []
@@ -181,7 +182,7 @@ export function useCoachSession() {
         const { sessionId } = await mutateJson<{ sessionId: string }>(
           '/api/coach/sessions',
           'POST',
-          { languageId, goal: sessionGoal },
+          { languageId, goal: sessionGoal, mode },
         )
         sessionIdRef.current = sessionId
         setSessionId(sessionId)
@@ -190,7 +191,7 @@ export function useCoachSession() {
         const token = await mutateJson<CoachTokenDTO>(
           '/api/coach/token',
           'POST',
-          { languageId, sessionGoal, deckIds },
+          { languageId, sessionGoal, deckIds, mode },
         )
 
         // 4. Connect to Gemini Live with the ephemeral token.

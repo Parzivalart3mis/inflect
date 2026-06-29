@@ -35,6 +35,7 @@ export default function CoachSessionPage() {
 
   const goal = params.get('goal') ?? undefined
   const deckIds = params.get('decks')?.split(',').filter(Boolean) ?? undefined
+  const mode = params.get('mode') === 'conversation' ? 'conversation' : 'coach'
 
   async function begin() {
     if (!activeLanguage) return
@@ -43,6 +44,7 @@ export default function CoachSessionPage() {
       languageId: activeLanguage.id,
       sessionGoal: goal,
       deckIds,
+      mode,
     })
   }
 
@@ -132,12 +134,16 @@ export default function CoachSessionPage() {
         </span>
         <div className="space-y-2">
           <h1 className="font-heading text-2xl font-semibold">
-            Ready to speak {activeLanguage.name}?
+            {mode === 'conversation'
+              ? `Ready to speak ${activeLanguage.name}?`
+              : `Ready to learn ${activeLanguage.name}?`}
           </h1>
           <p className="text-muted-foreground text-balance">
             {goal
               ? `Focus: ${goal}`
-              : 'Open practice. Your coach will correct you and weave in your own rules.'}
+              : mode === 'conversation'
+                ? `Open conversation — your partner replies only in ${activeLanguage.name}.`
+                : 'Ask anything — your coach explains and helps with pronunciation in English.'}
           </p>
         </div>
         <p className="text-muted-foreground text-xs">

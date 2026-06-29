@@ -28,6 +28,7 @@ export const deckCreateSchema = z.object({
   languageId: uuid,
   name: z.string().min(1).max(100),
   description: z.string().max(300).optional(),
+  kind: z.enum(['grammar', 'vocab']).optional(),
 })
 export type DeckCreateInput = z.infer<typeof deckCreateSchema>
 
@@ -88,16 +89,20 @@ export const noteUpdateSchema = z
   })
 
 // ---------------- Coach ----------------
+export const coachModeSchema = z.enum(['conversation', 'coach'])
+
 export const coachTokenSchema = z.object({
   languageId: uuid,
   sessionGoal: z.string().max(500).optional(),
   deckIds: z.array(uuid).max(5).optional(),
+  mode: coachModeSchema.optional(),
 })
 export type CoachTokenInput = z.infer<typeof coachTokenSchema>
 
 export const coachSessionCreateSchema = z.object({
   languageId: uuid,
   goal: z.string().max(500).optional(),
+  mode: coachModeSchema.optional(),
 })
 
 export const transcriptEntrySchema = z.object({

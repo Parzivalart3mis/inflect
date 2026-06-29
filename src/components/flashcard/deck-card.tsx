@@ -20,8 +20,13 @@ export function DeckCard({ deck }: { deck: DeckDTO }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-heading text-foreground line-clamp-1 font-semibold">
-            {deck.name}
+          <h3 className="font-heading text-foreground flex items-center gap-2 font-semibold">
+            <span className="line-clamp-1">{deck.name}</span>
+            {deck.kind === 'vocab' && (
+              <span className="bg-secondary text-secondary-foreground shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium">
+                Vocab
+              </span>
+            )}
           </h3>
           {deck.description && (
             <p className="text-muted-foreground mt-0.5 line-clamp-1 text-sm">

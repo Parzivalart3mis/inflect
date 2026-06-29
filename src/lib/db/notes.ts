@@ -3,7 +3,7 @@ import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { CardDTO, NoteDTO } from '@/types/dto'
 
 import { db } from './index'
-import { flashcards, notes } from './schema'
+import { decks, flashcards, notes } from './schema'
 import { toCardDTO } from './cards'
 
 const PAGE_SIZE = 20
@@ -109,13 +109,15 @@ export async function getNoteWithCards(
   const row = await getOwnedNote(userId, noteId)
   if (!row) return null
 
-  const linked = await db.query.flashcards.findMany({
-    where: eq(flashcards.sourceNoteId, noteId),
-    orderBy: desc(flashcards.createdAt),
-  })
+  const linked = await db
+    .select({ card: flashcards, kind: decks.kind })
+    .from(flashcards)
+    .innerJoin(decks, eq(flashcards.deckId, decks.id))
+    .where(eq(flashcards.sourceNoteId, noteId))
+    .orderBy(desc(flashcards.createdAt))
 
   return {
     note: toNoteDTO(row, linked.length),
-    cards: linked.map((c) => toCardDTO(c, null)),
+    cards: linked.map((r) => toCardDTO(r.card, null, r.kind)),
   }
 }

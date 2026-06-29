@@ -64,12 +64,41 @@ describe('buildSystemPrompt', () => {
   })
 
   it('always includes the SUGGEST_CARD protocol', () => {
-    const p = buildSystemPrompt({
-      languageName: 'Italian',
-      localeCode: 'it-IT',
+    for (const mode of ['conversation', 'coach'] as const) {
+      const p = buildSystemPrompt({
+        languageName: 'Italian',
+        localeCode: 'it-IT',
+        cards: [],
+        notes: [],
+        mode,
+      })
+      expect(p).toContain('[SUGGEST_CARD: front=')
+    }
+  })
+
+  describe('modes', () => {
+    const base = {
+      languageName: 'Spanish',
+      localeCode: 'es-ES',
       cards: [],
       notes: [],
+    }
+
+    it('conversation mode speaks only in the target language', () => {
+      const p = buildSystemPrompt({ ...base, mode: 'conversation' })
+      expect(p).toContain('Speak ONLY in Spanish')
+      expect(p).toContain('conversation partner')
     })
-    expect(p).toContain('[SUGGEST_CARD: front=')
+
+    it('coach mode speaks in English', () => {
+      const p = buildSystemPrompt({ ...base, mode: 'coach' })
+      expect(p).toContain('Speak in ENGLISH')
+      expect(p).toContain('language coach')
+    })
+
+    it('defaults to coach mode', () => {
+      const p = buildSystemPrompt(base)
+      expect(p).toContain('Speak in ENGLISH')
+    })
   })
 })

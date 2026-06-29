@@ -33,6 +33,7 @@ export function EditCardDialog({
   const [back, setBack] = useState(card.back ?? '')
   const [pinned, setPinned] = useState(card.isPinned)
   const [saving, setSaving] = useState(false)
+  const isVocab = card.deckKind === 'vocab'
 
   async function submit() {
     if (!front.trim()) {
@@ -64,7 +65,9 @@ export function EditCardDialog({
         </DialogHeader>
         <div className="grid gap-4 py-1">
           <div className="grid gap-2">
-            <Label htmlFor="edit-front">Rule (front)</Label>
+            <Label htmlFor="edit-front">
+              {isVocab ? 'Word (front)' : 'Rule (front)'}
+            </Label>
             <Textarea
               id="edit-front"
               value={front}
@@ -75,7 +78,9 @@ export function EditCardDialog({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="edit-back">Exception (back)</Label>
+            <Label htmlFor="edit-back">
+              {isVocab ? 'Pronunciation (back)' : 'Exception (back)'}
+            </Label>
             <Textarea
               id="edit-back"
               value={back}
@@ -83,7 +88,9 @@ export function EditCardDialog({
               rows={2}
               dir="auto"
               maxLength={1000}
-              placeholder="Leave blank for no exception"
+              placeholder={
+                isVocab ? 'e.g. OH-lah' : 'Leave blank for no exception'
+              }
             />
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">

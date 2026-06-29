@@ -22,7 +22,7 @@ export async function getReviewQueue(params: {
   const cutoff = endOfToday()
 
   const rows = await db
-    .select({ card: flashcards, srs: srsProgress })
+    .select({ card: flashcards, srs: srsProgress, kind: decks.kind })
     .from(flashcards)
     .innerJoin(decks, eq(flashcards.deckId, decks.id))
     .leftJoin(srsProgress, eq(srsProgress.cardId, flashcards.id))
@@ -41,5 +41,5 @@ export async function getReviewQueue(params: {
     .orderBy(asc(srsProgress.dueDate))
     .limit(MAX_QUEUE)
 
-  return rows.map((r) => toCardDTO(r.card, r.srs))
+  return rows.map((r) => toCardDTO(r.card, r.srs, r.kind))
 }

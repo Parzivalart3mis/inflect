@@ -169,7 +169,7 @@ export default function NoteEditorPage() {
                     key={card.id}
                     className="border-border bg-card flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
                   >
-                    {card.hasException && (
+                    {card.hasException && card.deckKind !== 'vocab' && (
                       <span
                         className="bg-exception flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
                         aria-label="Has exception"
