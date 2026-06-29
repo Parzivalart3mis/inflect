@@ -89,6 +89,11 @@ export const noteUpdateSchema = z
   })
 
 // ---------------- Coach ----------------
+export const ttsSchema = z.object({
+  text: z.string().min(1).max(500),
+  lang: z.string().max(20).optional(),
+})
+
 export const coachModeSchema = z.enum(['conversation', 'coach'])
 
 export const coachTokenSchema = z.object({

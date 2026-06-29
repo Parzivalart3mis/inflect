@@ -1,12 +1,14 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Volume2 } from 'lucide-react'
+import { Loader2, Volume2 } from 'lucide-react'
 import { useState } from 'react'
 
-import { isTTSAvailable, speak } from '@/lib/tts/speak'
+import { isTTSAvailable, speak, stripPhonetic } from '@/lib/tts/speak'
 import { cn } from '@/lib/utils'
 import type { DeckKind } from '@/types/dto'
+
+const ENGLISH = 'en-US'
 
 interface Props {
   front: string
@@ -32,6 +34,7 @@ export function FlashCard({
   className,
 }: Props) {
   const [internalFlipped, setInternalFlipped] = useState(false)
+  const [speaking, setSpeaking] = useState<'front' | 'back' | null>(null)
   const flipped = controlledFlipped ?? internalFlipped
   const ttsAvailable = isTTSAvailable()
   const isVocab = kind === 'vocab'
@@ -41,13 +44,29 @@ export function FlashCard({
     else setInternalFlipped((f) => !f)
   }
 
-  function handleSpeak(text: string, e: React.MouseEvent) {
+  // Vocab → speak the target word (phonetic stripped) in the deck locale.
+  // Grammar → speak the English text.
+  async function playFace(face: 'front' | 'back', e: React.MouseEvent) {
     e.stopPropagation()
-    speak(text, localeCode)
+    const raw = face === 'front' ? front : (back ?? '')
+    if (!raw.trim()) return
+    const text = isVocab ? stripPhonetic(raw) : raw
+    const locale = isVocab ? localeCode : ENGLISH
+    setSpeaking(face)
+    try {
+      await speak(text, locale)
+    } finally {
+      setSpeaking(null)
+    }
   }
 
   const frontAria = isVocab ? 'Showing word' : 'Showing rule'
   const backAria = isVocab ? 'Showing pronunciation' : 'Showing exception'
+
+  // Front speaker: grammar only (vocab front is just the prompt/meaning).
+  const showFrontSpeaker = ttsAvailable && !isVocab
+  // Back speaker: whenever there's a back (vocab word, or grammar exception).
+  const showBackSpeaker = ttsAvailable && !!back
 
   return (
     <div
@@ -89,13 +108,18 @@ export function FlashCard({
           >
             {front}
           </p>
-          {ttsAvailable && (
+          {showFrontSpeaker && (
             <button
-              onClick={(e) => handleSpeak(front, e)}
-              className="mt-1 rounded-full p-2 opacity-50 transition-opacity hover:opacity-100"
+              onClick={(e) => playFace('front', e)}
+              disabled={speaking === 'front'}
+              className="mt-1 rounded-full p-2 opacity-50 transition-opacity hover:opacity-100 disabled:opacity-100"
               aria-label="Hear pronunciation"
             >
-              <Volume2 className="text-primary size-4" />
+              {speaking === 'front' ? (
+                <Loader2 className="text-primary size-4 animate-spin" />
+              ) : (
+                <Volume2 className="text-primary size-4" />
+              )}
             </button>
           )}
         </div>
@@ -111,13 +135,18 @@ export function FlashCard({
           >
             {back ?? (isVocab ? 'No pronunciation added' : 'No exception')}
           </p>
-          {back && !isVocab && ttsAvailable && (
+          {showBackSpeaker && (
             <button
-              onClick={(e) => handleSpeak(back, e)}
-              className="mt-1 rounded-full p-2 opacity-60 transition-opacity hover:opacity-100"
+              onClick={(e) => playFace('back', e)}
+              disabled={speaking === 'back'}
+              className="mt-1 rounded-full p-2 opacity-60 transition-opacity hover:opacity-100 disabled:opacity-100"
               aria-label="Hear pronunciation"
             >
-              <Volume2 className="text-cta size-4" />
+              {speaking === 'back' ? (
+                <Loader2 className="text-cta size-4 animate-spin" />
+              ) : (
+                <Volume2 className="text-cta size-4" />
+              )}
             </button>
           )}
         </div>

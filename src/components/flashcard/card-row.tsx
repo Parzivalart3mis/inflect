@@ -1,6 +1,14 @@
 'use client'
 
-import { MoreVertical, Pencil, Pin, PinOff, Trash2, Volume2 } from 'lucide-react'
+import {
+  Loader2,
+  MoreVertical,
+  Pencil,
+  Pin,
+  PinOff,
+  Trash2,
+  Volume2,
+} from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -13,8 +21,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { mutateJson } from '@/lib/fetcher'
-import { isTTSAvailable, speak } from '@/lib/tts/speak'
+import { isTTSAvailable, speak, stripPhonetic } from '@/lib/tts/speak'
 import type { CardDTO } from '@/types/dto'
+
+const ENGLISH = 'en-US'
 
 export function CardRow({
   card,
@@ -26,6 +36,23 @@ export function CardRow({
   onChanged: () => void
 }) {
   const [editOpen, setEditOpen] = useState(false)
+  const [speaking, setSpeaking] = useState(false)
+
+  const isVocab = card.deckKind === 'vocab'
+  // Vocab → say the target word (back, phonetic stripped) in the deck locale.
+  // Grammar → say the English front.
+  const speakText = isVocab ? stripPhonetic(card.back ?? '') : card.front
+  const speakLocale = isVocab ? localeCode : ENGLISH
+  const canSpeak = isTTSAvailable() && speakText.trim().length > 0
+
+  async function playCard() {
+    setSpeaking(true)
+    try {
+      await speak(speakText, speakLocale)
+    } finally {
+      setSpeaking(false)
+    }
+  }
 
   async function togglePin() {
     try {
@@ -81,15 +108,20 @@ export function CardRow({
       </div>
 
       <div className="flex items-center">
-        {isTTSAvailable() && (
+        {canSpeak && (
           <Button
             variant="ghost"
             size="icon"
             className="size-9"
             aria-label="Hear pronunciation"
-            onClick={() => speak(card.front, localeCode)}
+            disabled={speaking}
+            onClick={playCard}
           >
-            <Volume2 className="size-4" />
+            {speaking ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Volume2 className="size-4" />
+            )}
           </Button>
         )}
         <DropdownMenu>

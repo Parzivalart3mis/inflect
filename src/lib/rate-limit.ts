@@ -27,6 +27,7 @@ export const limiters = {
   coachToken: makeLimiter(5, '1 h'), // 5 coach sessions / hour
   review: makeLimiter(100, '1 h'), // 100 card reviews / hour
   noteWrite: makeLimiter(20, '1 h'), // 20 note saves / hour
+  tts: makeLimiter(300, '1 h'), // 300 pronunciations / hour
   write: makeLimiter(60, '1 m'), // general write guard
 } as const
 
