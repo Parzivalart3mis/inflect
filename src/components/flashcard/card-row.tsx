@@ -72,7 +72,7 @@ export function CardRow({
         </p>
         {card.back && (
           <p
-            className="flashcard-content text-muted-foreground mt-0.5 line-clamp-2 text-sm"
+            className="flashcard-content text-muted-foreground mt-0.5 line-clamp-2 whitespace-pre-line text-sm"
             dir="auto"
           >
             {card.back}

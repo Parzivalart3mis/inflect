@@ -106,7 +106,7 @@ export function FlashCard({
             {isVocab ? 'Pronunciation' : 'Exception'}
           </span>
           <p
-            className="flashcard-content text-primary-foreground text-center text-base font-medium"
+            className="flashcard-content text-primary-foreground whitespace-pre-line text-center text-base font-medium"
             dir="auto"
           >
             {back ?? (isVocab ? 'No pronunciation added' : 'No exception')}
