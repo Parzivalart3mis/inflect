@@ -9,6 +9,7 @@
 
 let audioCtx: AudioContext | null = null
 let currentSource: AudioBufferSourceNode | null = null
+let inflight: AbortController | null = null
 const cache = new Map<string, AudioBuffer>()
 const MAX_CACHE = 80
 
@@ -55,7 +56,11 @@ function decodePcm(
 }
 
 /** Returns false when the AI path is unavailable so the caller can fall back. */
-async function playAI(text: string, localeCode: string): Promise<boolean> {
+async function playAI(
+  text: string,
+  localeCode: string,
+  signal: AbortSignal,
+): Promise<boolean> {
   const ctx = getCtx()
   // Unlock the context within the user gesture that triggered playback.
   if (ctx.state === 'suspended') await ctx.resume()
@@ -68,6 +73,7 @@ async function playAI(text: string, localeCode: string): Promise<boolean> {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ text, lang: localeCode }),
+      signal,
     })
     if (!res.ok) return false
     const { audio, sampleRate } = (await res.json()) as {
@@ -114,14 +120,21 @@ export async function speak(text: string, localeCode: string): Promise<void> {
   const trimmed = text.trim()
   if (!trimmed) return
 
-  // Cancel any in-flight system speech so taps feel responsive.
+  // Cancel any in-flight system speech + supersede a pending AI request.
   if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+  inflight?.abort()
+  const controller = new AbortController()
+  inflight = controller
 
   try {
-    const ok = await playAI(trimmed, localeCode)
+    const ok = await playAI(trimmed, localeCode, controller.signal)
     if (ok) return
-  } catch {
-    // fall through to the system voice
+  } catch (err) {
+    // A newer tap aborted this one — let it handle playback, don't fall back.
+    if (err instanceof DOMException && err.name === 'AbortError') return
+    // otherwise fall through to the system voice
+  } finally {
+    if (inflight === controller) inflight = null
   }
   playSystem(trimmed, localeCode)
 }

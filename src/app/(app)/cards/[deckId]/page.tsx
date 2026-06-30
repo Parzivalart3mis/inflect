@@ -22,7 +22,7 @@ import { ErrorState } from '@/components/common/error-state'
 import { Fab } from '@/components/common/fab'
 import { ListSkeleton } from '@/components/common/list-skeleton'
 import { BulkImportDialog } from '@/components/flashcard/bulk-import-dialog'
-import { CardRow } from '@/components/flashcard/card-row'
+import { DeckCardTile } from '@/components/flashcard/deck-card-tile'
 import { CreateCardDialog } from '@/components/flashcard/create-card-dialog'
 import { EditDeckDialog } from '@/components/flashcard/edit-deck-dialog'
 import { useLanguage } from '@/components/providers/language-provider'
@@ -181,10 +181,10 @@ export default function DeckDetailPage() {
               }
             />
           ) : (
-            <ul className="space-y-2.5">
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {cards.map((card) => (
                 <li key={card.id}>
-                  <CardRow
+                  <DeckCardTile
                     card={card}
                     localeCode={localeCode}
                     onChanged={() => mutate()}
