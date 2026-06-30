@@ -13,7 +13,11 @@ const DEFAULT_VOICE = 'Kore'
 const SAMPLE_RATE = 24000
 const RETRIES = 3
 
-const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN
+// Either auth path works: a classic read-write token, or Vercel's newer OIDC
+// flow (BLOB_STORE_ID + a runtime-injected VERCEL_OIDC_TOKEN). @vercel/blob
+// resolves whichever is present automatically.
+const hasBlob =
+  !!process.env.BLOB_READ_WRITE_TOKEN || !!process.env.BLOB_STORE_ID
 
 function languageName(lang?: string): string | null {
   const part = (lang ?? '').slice(0, 2).toLowerCase()
