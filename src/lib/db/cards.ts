@@ -3,6 +3,8 @@ import { and, desc, eq } from 'drizzle-orm'
 import type { Bucket } from '@/lib/srs/sm2'
 import type { BucketCounts, CardDTO, DeckDTO, DeckKind } from '@/types/dto'
 
+import { sortCardsForDeck } from '@/lib/cards/sort'
+
 import { db } from './index'
 import { decks, flashcards, srsProgress } from './schema'
 
@@ -124,7 +126,8 @@ export async function listDeckCards(
     .where(and(eq(flashcards.deckId, deckId), eq(flashcards.userId, userId)))
     .orderBy(desc(flashcards.createdAt))
 
-  return rows.map((r) => toCardDTO(r.card, r.srs, r.kind))
+  const cards = rows.map((r) => toCardDTO(r.card, r.srs, r.kind))
+  return sortCardsForDeck(cards, rows[0]?.kind ?? 'grammar')
 }
 
 /** Recompute and persist a deck's denormalized card_count. */
