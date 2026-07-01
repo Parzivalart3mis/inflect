@@ -92,6 +92,8 @@ export const noteUpdateSchema = z
 export const ttsSchema = z.object({
   text: z.string().min(1).max(500),
   lang: z.string().max(20).optional(),
+  // Pre-warm: generate + cache without returning the audio payload.
+  warm: z.boolean().optional(),
 })
 
 export const coachModeSchema = z.enum(['conversation', 'coach'])

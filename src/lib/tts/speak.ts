@@ -143,6 +143,83 @@ export function isTTSAvailable(): boolean {
   return typeof window !== 'undefined'
 }
 
+// ---- Deck pre-warm: generate + cache a whole deck's audio, paced under the
+// per-minute rate limit, so later playback is always served from cache. ----
+const PREWARM_INTERVAL_MS = 9000 // wait after each fresh generation
+const PREWARM_BACKOFF_MS = 60_000 // wait out a rate-limit window, then retry
+
+export interface PrewarmJob {
+  text: string
+  lang: string
+}
+
+function sleepAbortable(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(new DOMException('aborted', 'AbortError'))
+    const t = setTimeout(resolve, ms)
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(t)
+        reject(new DOMException('aborted', 'AbortError'))
+      },
+      { once: true },
+    )
+  })
+}
+
+/**
+ * Sequentially ensures each job's audio is cached. Cache hits are instant;
+ * fresh generations are spaced out (and rate-limit errors are backed off and
+ * retried) so the deck can be prepared without tripping the RPM cap.
+ * Throws AbortError if the signal is aborted.
+ */
+export async function prewarmTTS(
+  jobs: PrewarmJob[],
+  opts: { signal: AbortSignal; onProgress?: (processed: number, total: number) => void },
+): Promise<{ done: number; failed: number }> {
+  const seen = new Set<string>()
+  const uniq = jobs.filter((j) => {
+    const trimmed = j.text.trim()
+    if (!trimmed) return false
+    const k = `${j.lang}|${trimmed}`
+    if (seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
+
+  let done = 0
+  let failed = 0
+
+  for (const job of uniq) {
+    if (opts.signal.aborted) throw new DOMException('aborted', 'AbortError')
+    let ok = false
+    for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text: job.text.trim(), lang: job.lang, warm: true }),
+        signal: opts.signal,
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { cached?: boolean }
+        ok = true
+        if (!data.cached) await sleepAbortable(PREWARM_INTERVAL_MS, opts.signal)
+      } else if (res.status === 429 || res.status >= 500) {
+        // Rate-limited or transient — wait out the window, then retry once.
+        await sleepAbortable(PREWARM_BACKOFF_MS, opts.signal)
+      } else {
+        break // 4xx (e.g. unconfigured) — don't retry
+      }
+    }
+    if (ok) done++
+    else failed++
+    opts.onProgress?.(done + failed, uniq.length)
+  }
+
+  return { done, failed }
+}
+
 /**
  * Strips parenthetical phonetic guides and newlines so a vocab back like
  * `"quiero\n(KYEH-roh)"` is spoken as just `"quiero"`.

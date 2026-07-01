@@ -1,9 +1,11 @@
 'use client'
 
 import {
+  AudioLines,
   ChevronLeft,
   Download,
   Layers,
+  Loader2,
   MoreVertical,
   Pencil,
   Play,
@@ -14,7 +16,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { toast } from 'sonner'
 
@@ -37,7 +39,25 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { mutateJson } from '@/lib/fetcher'
+import { prewarmTTS, stripPhonetic, type PrewarmJob } from '@/lib/tts/speak'
 import type { CardDTO, DeckDTO } from '@/types/dto'
+
+const ENGLISH = 'en-US'
+
+/** Build the TTS jobs for a deck's cards, matching the speaker-by-kind rules. */
+function buildTtsJobs(cards: CardDTO[], localeCode: string): PrewarmJob[] {
+  const jobs: PrewarmJob[] = []
+  for (const c of cards) {
+    if (c.deckKind === 'vocab') {
+      const word = stripPhonetic(c.back ?? '')
+      if (word) jobs.push({ text: word, lang: localeCode })
+    } else {
+      if (c.front.trim()) jobs.push({ text: c.front, lang: ENGLISH })
+      if (c.back && c.back.trim()) jobs.push({ text: c.back, lang: ENGLISH })
+    }
+  }
+  return jobs
+}
 
 export default function DeckDetailPage() {
   const router = useRouter()
@@ -54,6 +74,13 @@ export default function DeckDetailPage() {
   const [bulkOpen, setBulkOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [prewarm, setPrewarm] = useState<{ done: number; total: number } | null>(
+    null,
+  )
+  const prewarmRef = useRef<AbortController | null>(null)
+
+  // Abort a running pre-warm if the user leaves the deck.
+  useEffect(() => () => prewarmRef.current?.abort(), [])
 
   const cards = data?.cards ?? []
   const dueCount = cards.filter(
@@ -76,6 +103,36 @@ export default function DeckDetailPage() {
       router.push('/cards')
     } catch {
       toast.error('Could not delete deck')
+    }
+  }
+
+  async function startPrewarm() {
+    if (!data) return
+    const jobs = buildTtsJobs(cards, localeCode)
+    if (jobs.length === 0) {
+      toast.info('Nothing to prepare')
+      return
+    }
+    const controller = new AbortController()
+    prewarmRef.current = controller
+    setPrewarm({ done: 0, total: jobs.length })
+    try {
+      const { done, failed } = await prewarmTTS(jobs, {
+        signal: controller.signal,
+        onProgress: (processed, total) => setPrewarm({ done: processed, total }),
+      })
+      toast.success(
+        failed === 0
+          ? 'Audio ready — cards now play instantly'
+          : `Prepared ${done}, ${failed} failed — run again to retry`,
+      )
+    } catch (err) {
+      if (!(err instanceof DOMException && err.name === 'AbortError')) {
+        toast.error('Could not prepare audio')
+      }
+    } finally {
+      prewarmRef.current = null
+      setPrewarm(null)
     }
   }
 
@@ -108,6 +165,13 @@ export default function DeckDetailPage() {
               <DropdownMenuItem onClick={() => setBulkOpen(true)}>
                 <Upload className="size-4" />
                 Bulk import
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={startPrewarm}
+                disabled={!!prewarm}
+              >
+                <AudioLines className="size-4" />
+                Prepare audio
               </DropdownMenuItem>
               <DropdownMenuItem
                 render={<a href={`/api/decks/${deckId}/export`} download />}
@@ -158,6 +222,32 @@ export default function DeckDetailPage() {
               {dueCount > 0 && ` · ${dueCount} due`}
             </p>
           </div>
+
+          {prewarm && (
+            <div className="border-border bg-card mb-4 flex items-center gap-3 rounded-xl border p-3">
+              <Loader2 className="text-cta size-4 shrink-0 animate-spin" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">
+                  Preparing audio… {prewarm.done}/{prewarm.total}
+                </p>
+                <div className="bg-muted mt-1 h-1.5 w-full overflow-hidden rounded-full">
+                  <div
+                    className="bg-cta h-full rounded-full transition-[width]"
+                    style={{
+                      width: `${prewarm.total ? (prewarm.done / prewarm.total) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => prewarmRef.current?.abort()}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
 
           {dueCount > 0 && (
             <Button

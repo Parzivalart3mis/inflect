@@ -32,6 +32,17 @@ function languageName(lang?: string): string | null {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 // ---- Vercel Blob cache (each unique word/rule is generated once ever) ----
+async function blobExists(hash: string): Promise<boolean> {
+  if (!hasBlob) return false
+  const pathname = `tts/${hash}.bin`
+  try {
+    const { blobs } = await list({ prefix: pathname, limit: 1 })
+    return blobs.some((b) => b.pathname === pathname)
+  } catch {
+    return false
+  }
+}
+
 async function readCache(hash: string): Promise<string | null> {
   if (!hasBlob) return null
   const pathname = `tts/${hash}.bin`
@@ -97,7 +108,7 @@ export const POST = route(async (request: Request) => {
   }
 
   const userId = await requireUser()
-  const { text, lang } = await parseBody(request, ttsSchema)
+  const { text, lang, warm } = await parseBody(request, ttsSchema)
   await enforceRateLimit('tts', userId, 'Too many pronunciations this hour')
 
   const model = process.env.GEMINI_TTS_MODEL ?? DEFAULT_MODEL
@@ -111,14 +122,34 @@ export const POST = route(async (request: Request) => {
     .update(`${model}|${voiceName}|${lang ?? ''}|${text}`)
     .digest('hex')
 
-  // 1. Serve from the durable Blob cache when we've spoken this before.
-  const cached = await readCache(hash)
-  if (cached) {
-    return NextResponse.json({ audio: cached, sampleRate: SAMPLE_RATE })
+  const ai = new GoogleGenAI({ apiKey })
+
+  // Pre-warm mode: only ensure the audio is cached; skip the audio payload.
+  if (warm) {
+    if (await blobExists(hash)) {
+      return NextResponse.json({ cached: true })
+    }
+    let audio: string
+    try {
+      audio = await generate(ai, model, voiceName, prompt)
+    } catch {
+      throw new ApiError('tts_error', 'Could not synthesize audio', 502)
+    }
+    await writeCache(hash, audio)
+    return NextResponse.json({ cached: false })
   }
 
-  // 2. Otherwise generate (with retries) and cache for next time.
-  const ai = new GoogleGenAI({ apiKey })
+  // Playback: serve from the durable Blob cache when we've spoken this before.
+  const cached = await readCache(hash)
+  if (cached) {
+    return NextResponse.json({
+      audio: cached,
+      sampleRate: SAMPLE_RATE,
+      cached: true,
+    })
+  }
+
+  // Otherwise generate (with retries) and cache for next time.
   let audio: string
   try {
     audio = await generate(ai, model, voiceName, prompt)
@@ -127,5 +158,5 @@ export const POST = route(async (request: Request) => {
   }
 
   void writeCache(hash, audio)
-  return NextResponse.json({ audio, sampleRate: SAMPLE_RATE })
+  return NextResponse.json({ audio, sampleRate: SAMPLE_RATE, cached: false })
 })
