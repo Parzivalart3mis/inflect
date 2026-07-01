@@ -14,7 +14,13 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { EditCardDialog } from '@/components/flashcard/edit-card-dialog'
+import { FlashCard } from '@/components/flashcard/flash-card'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +46,7 @@ export function DeckCardTile({
   const [flipped, setFlipped] = useState(false)
   const [speaking, setSpeaking] = useState<'front' | 'back' | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [enlargedOpen, setEnlargedOpen] = useState(false)
 
   const isVocab = card.deckKind === 'vocab'
   const ttsAvailable = isTTSAvailable()
@@ -141,14 +148,24 @@ export function DeckCardTile({
           </div>
         </div>
 
-        {/* Flip */}
+        {/* Vocab flips in place; grammar (rules) enlarges into a popup first. */}
         <motion.div
           className="preserve-3d relative h-full w-full cursor-pointer"
-          onClick={() => card.back && setFlipped((f) => !f)}
+          onClick={() =>
+            isVocab
+              ? card.back && setFlipped((f) => !f)
+              : setEnlargedOpen(true)
+          }
           animate={{ rotateY: flipped ? 180 : 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           role="button"
-          aria-label={flipped ? 'Showing answer' : 'Showing prompt'}
+          aria-label={
+            isVocab
+              ? flipped
+                ? 'Showing pronunciation'
+                : 'Showing word'
+              : 'Enlarge card'
+          }
         >
           {/* Front */}
           <div className="backface-hidden bg-card border-border absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl border px-3 py-7 shadow-sm">
@@ -165,11 +182,9 @@ export function DeckCardTile({
                 className="text-primary"
               />
             )}
-            {card.back && (
-              <span className="text-muted-foreground/40 absolute bottom-1.5 text-[10px]">
-                tap to flip
-              </span>
-            )}
+            <span className="text-muted-foreground/40 absolute bottom-1.5 text-[10px]">
+              {isVocab ? (card.back ? 'tap to flip' : '') : 'tap to open'}
+            </span>
           </div>
 
           {/* Back */}
@@ -200,6 +215,22 @@ export function DeckCardTile({
         card={card}
         onSaved={onChanged}
       />
+
+      {/* Grammar: enlarged popup; tapping the card inside flips it. */}
+      {!isVocab && (
+        <Dialog open={enlargedOpen} onOpenChange={setEnlargedOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogTitle className="sr-only">Flashcard</DialogTitle>
+            <FlashCard
+              front={card.front}
+              back={card.back}
+              hasException={card.hasException}
+              kind={card.deckKind}
+              localeCode={localeCode}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   )
 }
