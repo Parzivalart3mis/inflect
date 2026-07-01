@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq } from 'drizzle-orm'
 
 import type { Bucket } from '@/lib/srs/sm2'
 import type { BucketCounts, CardDTO, DeckDTO, DeckKind } from '@/types/dto'
@@ -124,7 +124,9 @@ export async function listDeckCards(
     .innerJoin(decks, eq(flashcards.deckId, decks.id))
     .leftJoin(srsProgress, eq(srsProgress.cardId, flashcards.id))
     .where(and(eq(flashcards.deckId, deckId), eq(flashcards.userId, userId)))
-    .orderBy(desc(flashcards.createdAt))
+    // Grammar decks read "first come, first show" (oldest first); vocab decks
+    // are re-sorted alphabetically by sortCardsForDeck below.
+    .orderBy(asc(flashcards.createdAt))
 
   const cards = rows.map((r) => toCardDTO(r.card, r.srs, r.kind))
   return sortCardsForDeck(cards, rows[0]?.kind ?? 'grammar')

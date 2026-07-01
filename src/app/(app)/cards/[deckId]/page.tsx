@@ -8,6 +8,7 @@ import {
   Pencil,
   Play,
   Plus,
+  Search,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -27,6 +28,7 @@ import { CreateCardDialog } from '@/components/flashcard/create-card-dialog'
 import { EditDeckDialog } from '@/components/flashcard/edit-deck-dialog'
 import { useLanguage } from '@/components/providers/language-provider'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,11 +53,20 @@ export default function DeckDetailPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [query, setQuery] = useState('')
 
   const cards = data?.cards ?? []
   const dueCount = cards.filter(
     (c) => c.isPinned || !c.srs || new Date(c.srs.dueDate) <= new Date(),
   ).length
+
+  const isVocab = data?.deck.kind === 'vocab'
+  const q = query.trim().toLowerCase()
+  // Vocab decks are searchable by the English front word.
+  const filteredCards =
+    isVocab && q
+      ? cards.filter((c) => c.front.toLowerCase().includes(q))
+      : cards
 
   async function deleteDeck() {
     if (!data) return
@@ -181,17 +192,41 @@ export default function DeckDetailPage() {
               }
             />
           ) : (
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {cards.map((card) => (
-                <li key={card.id}>
-                  <DeckCardTile
-                    card={card}
-                    localeCode={localeCode}
-                    onChanged={() => mutate()}
+            <>
+              {isVocab && (
+                <div className="relative mb-4">
+                  <Search
+                    className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2"
+                    aria-hidden
                   />
-                </li>
-              ))}
-            </ul>
+                  <Input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search English words…"
+                    className="pl-9"
+                    aria-label="Search cards"
+                  />
+                </div>
+              )}
+
+              {filteredCards.length === 0 ? (
+                <p className="text-muted-foreground py-8 text-center text-sm">
+                  No cards match “{query.trim()}”.
+                </p>
+              ) : (
+                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {filteredCards.map((card) => (
+                    <li key={card.id}>
+                      <DeckCardTile
+                        card={card}
+                        localeCode={localeCode}
+                        onChanged={() => mutate()}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </>
       )}

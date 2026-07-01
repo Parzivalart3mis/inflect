@@ -1,7 +1,7 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -24,16 +24,23 @@ export function CreateDeckDialog({
   open,
   onOpenChange,
   languageId,
+  defaultKind = 'grammar',
   onCreated,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   languageId: string
+  defaultKind?: DeckKind
   onCreated?: (deckId: string) => void
 }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [kind, setKind] = useState<DeckKind>('grammar')
+  const [kind, setKind] = useState<DeckKind>(defaultKind)
+
+  // Default the type to the caller's active tab each time the dialog opens.
+  useEffect(() => {
+    if (open) setKind(defaultKind)
+  }, [open, defaultKind])
   const [saving, setSaving] = useState(false)
 
   async function submit() {
