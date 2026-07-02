@@ -100,6 +100,22 @@ async function writeCache(hash: string, base64: string): Promise<void> {
   }
 }
 
+// Expand abbreviations and symbols that a neural TTS reads literally, so
+// grammar cards ("e.g. vender→vende", "add -N") are spoken naturally the way
+// Gemini's model did implicitly. Applied to every provider for consistency.
+function speakableText(text: string): string {
+  return text
+    .replace(/[→⇒]|-{1,2}>/g, ' becomes ')
+    .replace(/\be\.g\.,?/gi, 'for example,')
+    .replace(/\bi\.e\.,?/gi, 'that is,')
+    .replace(/\betc\./gi, 'etcetera')
+    .replace(/\bvs\.?(?=\s|$)/gi, 'versus')
+    // Drop a suffix hyphen so "-N" / "-AR" reads "N" / "AR", not "minus N".
+    .replace(/(^|\s)[-–—]([A-Za-zÁÉÍÓÚÑáéíóúñ])/g, '$1$2')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 // ---- Azure Speech (primary) ----
 function escapeXml(s: string): string {
   return s
@@ -170,7 +186,8 @@ async function geminiGenerate(
 }
 
 /** Try the preferred provider, then fall back. Throws if all providers fail. */
-async function synthesize(text: string, lang?: string): Promise<string> {
+async function synthesize(rawText: string, lang?: string): Promise<string> {
+  const text = speakableText(rawText)
   let lastErr: unknown
   if (azureConfigured) {
     try {
