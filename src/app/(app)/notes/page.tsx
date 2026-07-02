@@ -111,7 +111,7 @@ export default function NotesPage() {
       )}
 
       {notes.length > 0 && (
-        <ul className="space-y-3">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {notes.map((note) => (
             <li key={note.id}>
               <NoteListItem note={note} />
