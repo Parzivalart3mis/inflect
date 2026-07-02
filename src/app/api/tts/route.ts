@@ -10,9 +10,31 @@ import { ttsSchema } from '@/lib/validations'
 
 const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-preview-tts'
 const DEFAULT_GEMINI_VOICE = 'Kore'
-const DEFAULT_AZURE_VOICE = 'es-ES-ElviraNeural'
 const SAMPLE_RATE = 24000
 const RETRIES = 3
+
+// Default Azure neural voice per language (base code). Grammar cards are
+// spoken in English (en-US); vocab words in the deck's target language.
+const AZURE_VOICES: Record<string, string> = {
+  en: 'en-US-AriaNeural',
+  es: 'es-ES-ElviraNeural',
+  fr: 'fr-FR-DeniseNeural',
+  de: 'de-DE-KatjaNeural',
+  it: 'it-IT-ElsaNeural',
+  pt: 'pt-BR-FranciscaNeural',
+}
+
+/**
+ * Pick an Azure neural voice for the requested language. AZURE_SPEECH_VOICE
+ * overrides only its own language, so a custom Spanish voice still leaves
+ * English (grammar) text on an English voice rather than mispronouncing it.
+ */
+function azureVoiceFor(lang?: string): string {
+  const base = (lang ?? 'es').slice(0, 2).toLowerCase()
+  const override = process.env.AZURE_SPEECH_VOICE
+  if (override && override.slice(0, 2).toLowerCase() === base) return override
+  return AZURE_VOICES[base] ?? AZURE_VOICES.en
+}
 
 // Provider selection. Azure Speech is preferred when configured (high RPM,
 // native voices); Gemini is the fallback; the client uses the on-device voice
@@ -89,10 +111,10 @@ function escapeXml(s: string): string {
 }
 
 /** Synthesize with Azure, returning base64 24kHz 16-bit mono PCM. */
-async function azureSynthesize(text: string): Promise<string> {
+async function azureSynthesize(text: string, lang?: string): Promise<string> {
   const region = process.env.AZURE_SPEECH_REGION as string
   const key = process.env.AZURE_SPEECH_KEY as string
-  const voice = process.env.AZURE_SPEECH_VOICE || DEFAULT_AZURE_VOICE
+  const voice = azureVoiceFor(lang)
   // Derive the SSML locale from the voice (e.g. es-ES-ElviraNeural → es-ES).
   const locale = voice.split('-').slice(0, 2).join('-') || 'es-ES'
   const ssml = `<speak version="1.0" xml:lang="${locale}"><voice name="${voice}">${escapeXml(text)}</voice></speak>`
@@ -152,7 +174,7 @@ async function synthesize(text: string, lang?: string): Promise<string> {
   let lastErr: unknown
   if (azureConfigured) {
     try {
-      return await azureSynthesize(text)
+      return await azureSynthesize(text, lang)
     } catch (err) {
       lastErr = err
     }
@@ -183,7 +205,7 @@ async function synthesize(text: string, lang?: string): Promise<string> {
  * the same text never collide. */
 function cacheHash(text: string, lang?: string): string {
   const providerId = azureConfigured
-    ? `azure|${process.env.AZURE_SPEECH_VOICE || DEFAULT_AZURE_VOICE}`
+    ? `azure|${azureVoiceFor(lang)}`
     : `gemini|${process.env.GEMINI_TTS_MODEL ?? DEFAULT_GEMINI_MODEL}|${process.env.GEMINI_TTS_VOICE ?? DEFAULT_GEMINI_VOICE}`
   return createHash('sha256')
     .update(`${providerId}|${lang ?? ''}|${text}`)
