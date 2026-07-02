@@ -16,37 +16,40 @@ export function DeckCard({ deck }: { deck: DeckDTO }) {
   return (
     <Link
       href={`/cards/${deck.id}`}
-      className="border-border bg-card hover:border-primary/40 block rounded-xl border p-4 transition-colors"
+      className="border-border bg-card hover:border-primary/40 flex h-full min-h-32 flex-col rounded-xl border p-3 transition-colors"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="font-heading text-foreground flex items-center gap-2 font-semibold">
-            <span className="line-clamp-1">{deck.name}</span>
-            {deck.kind === 'vocab' && (
-              <span className="bg-secondary text-secondary-foreground shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium">
-                Vocab
-              </span>
-            )}
-          </h3>
-          {deck.description && (
-            <p className="text-muted-foreground mt-0.5 line-clamp-1 text-sm">
-              {deck.description}
-            </p>
-          )}
-        </div>
+      <div className="flex items-start justify-between gap-2">
+        {deck.kind === 'vocab' ? (
+          <span className="bg-secondary text-secondary-foreground shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium">
+            Vocab
+          </span>
+        ) : (
+          <span className="text-muted-foreground/70 text-[10px] font-medium tracking-wide uppercase">
+            Grammar
+          </span>
+        )}
         {deck.dueToday > 0 && (
-          <span className="bg-cta text-cta-foreground inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-semibold">
+          <span className="bg-cta text-cta-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold">
             {deck.dueToday} due
           </span>
         )}
       </div>
 
-      <div className="mt-3 flex items-center gap-3">
-        <span className="text-muted-foreground text-xs">
+      <h3 className="font-heading text-foreground mt-2 line-clamp-2 text-sm font-semibold">
+        {deck.name}
+      </h3>
+      {deck.description && (
+        <p className="text-muted-foreground mt-0.5 line-clamp-1 text-xs">
+          {deck.description}
+        </p>
+      )}
+
+      <div className="mt-auto pt-3">
+        <span className="text-muted-foreground text-[11px]">
           {deck.cardCount} card{deck.cardCount === 1 ? '' : 's'}
         </span>
         {deck.cardCount > 0 && (
-          <div className="flex h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+          <div className="mt-1.5 flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
             {BUCKET_META.map(({ key, className }) =>
               deck.buckets[key] > 0 ? (
                 <div

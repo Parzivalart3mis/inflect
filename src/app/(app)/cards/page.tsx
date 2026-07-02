@@ -130,7 +130,7 @@ export default function CardsPage() {
       )}
 
       {visibleDecks.length > 0 && (
-        <ul className="space-y-3">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {visibleDecks.map((deck) => (
             <li key={deck.id}>
               <DeckCard deck={deck} />
