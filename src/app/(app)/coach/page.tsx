@@ -1,9 +1,9 @@
 'use client'
 
-import { Clock, Mic, Sparkles } from 'lucide-react'
+import { ChevronDown, ChevronUp, Clock, Mic, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 
 import { EmptyState } from '@/components/common/empty-state'
@@ -16,12 +16,15 @@ import { formatMinutes, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { CoachMode, CoachSessionDTO, DeckDTO } from '@/types/dto'
 
+const DECK_LIMIT = 10
+
 export default function CoachPage() {
   const router = useRouter()
   const { activeLanguage, activeLanguageId } = useLanguage()
   const [goal, setGoal] = useState('')
   const [selected, setSelected] = useState<string[]>([])
   const [mode, setMode] = useState<CoachMode>('conversation')
+  const [showAllDecks, setShowAllDecks] = useState(false)
 
   const { data: decks } = useSWR<DeckDTO[]>(
     activeLanguageId ? `/api/decks?languageId=${activeLanguageId}` : null,
@@ -29,6 +32,32 @@ export default function CoachPage() {
   const { data: history } = useSWR<{ sessions: CoachSessionDTO[] }>(
     activeLanguageId ? `/api/coach/sessions?languageId=${activeLanguageId}` : null,
   )
+
+  // Grammar decks first, then vocab; each alphabetical — so the collapsed
+  // first-10 view is stable and predictable rather than raw API order.
+  const sortedDecks = useMemo(() => {
+    if (!decks) return []
+    return [...decks].sort((a, b) =>
+      a.kind !== b.kind
+        ? a.kind === 'grammar'
+          ? -1
+          : 1
+        : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+    )
+  }, [decks])
+
+  const canCollapse = sortedDecks.length > DECK_LIMIT
+  // Collapsed: first 10, plus any selected deck that would otherwise be hidden,
+  // so an active focus deck is never out of sight.
+  const visibleDecks = useMemo(() => {
+    if (!canCollapse || showAllDecks) return sortedDecks
+    const head = sortedDecks.slice(0, DECK_LIMIT)
+    const extraSelected = sortedDecks
+      .slice(DECK_LIMIT)
+      .filter((d) => selected.includes(d.id))
+    return [...head, ...extraSelected]
+  }, [sortedDecks, canCollapse, showAllDecks, selected])
+  const hiddenCount = sortedDecks.length - visibleDecks.length
 
   function toggleDeck(id: string) {
     setSelected((prev) =>
@@ -130,12 +159,13 @@ export default function CoachPage() {
           />
         </div>
 
-        {decks && decks.length > 0 && (
+        {sortedDecks.length > 0 && (
           <div className="grid gap-2">
             <Label>Focus decks (optional, up to 5)</Label>
             <div className="flex flex-wrap gap-2">
-              {decks.map((deck) => {
+              {visibleDecks.map((deck) => {
                 const on = selected.includes(deck.id)
+                const isVocab = deck.kind === 'vocab'
                 return (
                   <button
                     key={deck.id}
@@ -143,17 +173,53 @@ export default function CoachPage() {
                     onClick={() => toggleDeck(deck.id)}
                     aria-pressed={on}
                     className={cn(
-                      'rounded-full border px-3 py-1.5 text-sm transition-colors',
+                      'inline-flex items-center gap-1.5 rounded-full border py-1.5 pr-3 pl-1.5 text-sm transition-colors',
                       on
                         ? 'border-primary bg-primary text-primary-foreground'
                         : 'border-border bg-background hover:bg-accent',
                     )}
                   >
-                    {deck.name}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        'flex size-5 items-center justify-center rounded-full text-[10px] font-bold',
+                        on
+                          ? 'bg-primary-foreground/20 text-primary-foreground'
+                          : isVocab
+                            ? 'bg-secondary text-secondary-foreground'
+                            : 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      {isVocab ? 'V' : 'G'}
+                    </span>
+                    <span>{deck.name}</span>
+                    <span className="sr-only">
+                      {isVocab ? 'Vocab' : 'Grammar'} deck
+                    </span>
                   </button>
                 )
               })}
             </div>
+            {canCollapse && (
+              <button
+                type="button"
+                onClick={() => setShowAllDecks((v) => !v)}
+                aria-expanded={showAllDecks}
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 self-start text-xs font-medium transition-colors"
+              >
+                {showAllDecks ? (
+                  <>
+                    <ChevronUp className="size-4" aria-hidden />
+                    Show fewer decks
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="size-4" aria-hidden />
+                    Show all decks ({hiddenCount} more)
+                  </>
+                )}
+              </button>
+            )}
           </div>
         )}
 
