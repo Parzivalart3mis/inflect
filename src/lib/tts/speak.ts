@@ -145,7 +145,13 @@ export function isTTSAvailable(): boolean {
 
 // ---- Deck pre-warm: generate + cache a whole deck's audio, paced under the
 // per-minute rate limit, so later playback is always served from cache. ----
-const PREWARM_INTERVAL_MS = 9000 // wait after each fresh generation
+// Spacing after each fresh generation, by provider. Azure's free tier is far
+// more generous than Gemini's ~10/min preview cap, so it can be paced tightly.
+const PREWARM_INTERVAL_MS: Record<string, number> = {
+  azure: 400,
+  gemini: 9000,
+}
+const DEFAULT_PREWARM_INTERVAL_MS = 9000
 const PREWARM_BACKOFF_MS = 60_000 // wait out a rate-limit window, then retry
 
 export interface PrewarmJob {
@@ -202,9 +208,17 @@ export async function prewarmTTS(
         signal: opts.signal,
       })
       if (res.ok) {
-        const data = (await res.json()) as { cached?: boolean }
+        const data = (await res.json()) as {
+          cached?: boolean
+          provider?: string
+        }
         ok = true
-        if (!data.cached) await sleepAbortable(PREWARM_INTERVAL_MS, opts.signal)
+        if (!data.cached) {
+          const wait =
+            PREWARM_INTERVAL_MS[data.provider ?? ''] ??
+            DEFAULT_PREWARM_INTERVAL_MS
+          await sleepAbortable(wait, opts.signal)
+        }
       } else if (res.status === 429 || res.status >= 500) {
         // Rate-limited or transient — wait out the window, then retry once.
         await sleepAbortable(PREWARM_BACKOFF_MS, opts.signal)
