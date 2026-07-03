@@ -10,6 +10,7 @@ import {
   Pin,
   Plus,
   Trash2,
+  Undo2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -50,18 +51,47 @@ export default function NoteEditorPage() {
   const [content, setContent] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [cardOpen, setCardOpen] = useState(false)
-  const [mode, setMode] = useState<'edit' | 'preview'>('edit')
+  // Notes open in preview (formatted); a blank/new note opens in edit so you
+  // can start typing without a "Nothing to preview yet" placeholder.
+  const [mode, setMode] = useState<'edit' | 'preview'>('preview')
+  const [canUndo, setCanUndo] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const initialized = useRef(false)
+  const historyRef = useRef<string[]>([])
+  const lastSnapshotRef = useRef(0)
 
   useEffect(() => {
     if (data && !initialized.current) {
       initialized.current = true
       setTitle(data.note.title === 'Untitled' ? '' : data.note.title)
       setContent(data.note.content)
+      setMode(data.note.content.trim() ? 'preview' : 'edit')
+      historyRef.current = []
+      setCanUndo(false)
       setLoaded(true)
     }
   }, [data])
+
+  // Content edits go through here so we can keep an undo history. Typing bursts
+  // are coalesced (one undo step per ~pause) rather than one step per keystroke.
+  function updateContent(next: string) {
+    const now = Date.now()
+    if (now - lastSnapshotRef.current > 500) {
+      historyRef.current.push(content)
+      if (historyRef.current.length > 200) historyRef.current.shift()
+      lastSnapshotRef.current = now
+      setCanUndo(true)
+    }
+    setContent(next)
+  }
+
+  function undo() {
+    const prev = historyRef.current.pop()
+    if (prev === undefined) return
+    setContent(prev)
+    lastSnapshotRef.current = 0 // let the next edit start a fresh undo step
+    setCanUndo(historyRef.current.length > 0)
+  }
 
   const { status } = useAutoSave({
     value: `${title}${SEP}${content}`,
@@ -112,6 +142,16 @@ export default function NoteEditorPage() {
         </Button>
         <div className="flex items-center gap-2">
           <SaveIndicator status={status} />
+          {loaded && canUndo && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={undo}
+              aria-label="Undo"
+            >
+              <Undo2 className="size-4" />
+            </Button>
+          )}
           {loaded && (
             <Button
               variant="ghost"
@@ -187,12 +227,12 @@ export default function NoteEditorPage() {
               <MarkdownToolbar
                 textareaRef={textareaRef}
                 value={content}
-                onChange={setContent}
+                onChange={updateContent}
               />
               <textarea
                 ref={textareaRef}
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={(e) => updateContent(e.target.value)}
                 placeholder="Write a grammar rule, an observation, an exception you keep forgetting… Use the toolbar to format."
                 dir="auto"
                 className="note-content mt-3 w-full flex-1 resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-muted-foreground/50 field-sizing-content"
