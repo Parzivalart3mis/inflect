@@ -13,27 +13,40 @@ const DEFAULT_GEMINI_VOICE = 'Kore'
 const SAMPLE_RATE = 24000
 const RETRIES = 3
 
-// Default Azure neural voice per language (base code). Grammar cards are
-// spoken in English (en-US); vocab words in the deck's target language.
-const AZURE_VOICES: Record<string, string> = {
-  en: 'en-US-AriaNeural',
-  es: 'es-ES-ElviraNeural',
-  fr: 'fr-FR-DeniseNeural',
-  de: 'de-DE-KatjaNeural',
-  it: 'it-IT-ElsaNeural',
-  pt: 'pt-BR-FranciscaNeural',
+// Azure voices per language (base code), most natural first. Grammar cards are
+// spoken in English; vocab words in the deck's target language. Each list is an
+// ordered fallback chain: the newest "Dragon HD" voice first (closest to a
+// human / Gemini), then a Multilingual voice, then a standard neural voice.
+const AZURE_VOICES: Record<string, string[]> = {
+  en: [
+    'en-US-Ava:DragonHDLatestNeural',
+    'en-US-AvaMultilingualNeural',
+    'en-US-AriaNeural',
+  ],
+  es: [
+    'es-ES-Ximena:DragonHDLatestNeural',
+    'es-ES-XimenaMultilingualNeural',
+    'es-ES-ElviraNeural',
+  ],
+  fr: ['fr-FR-DeniseNeural'],
+  de: ['de-DE-KatjaNeural'],
+  it: ['it-IT-ElsaNeural'],
+  pt: ['pt-BR-FranciscaNeural'],
 }
 
 /**
- * Pick an Azure neural voice for the requested language. AZURE_SPEECH_VOICE
- * overrides only its own language, so a custom Spanish voice still leaves
- * English (grammar) text on an English voice rather than mispronouncing it.
+ * Ordered voice fallback chain for the requested language. AZURE_SPEECH_VOICE
+ * overrides only its own language (taking priority), so a custom Spanish voice
+ * still leaves English (grammar) text on an English voice.
  */
-function azureVoiceFor(lang?: string): string {
+function azureVoicesFor(lang?: string): string[] {
   const base = (lang ?? 'es').slice(0, 2).toLowerCase()
+  const list = AZURE_VOICES[base] ?? AZURE_VOICES.en
   const override = process.env.AZURE_SPEECH_VOICE
-  if (override && override.slice(0, 2).toLowerCase() === base) return override
-  return AZURE_VOICES[base] ?? AZURE_VOICES.en
+  if (override && override.slice(0, 2).toLowerCase() === base) {
+    return [override, ...list.filter((v) => v !== override)]
+  }
+  return list
 }
 
 // Provider selection. Azure Speech is preferred when configured (high RPM,
@@ -126,18 +139,19 @@ function escapeXml(s: string): string {
     .replace(/'/g, '&apos;')
 }
 
-/** Synthesize with Azure, returning base64 24kHz 16-bit mono PCM. */
+/** Synthesize with Azure, returning base64 24kHz 16-bit mono PCM. Walks the
+ * voice fallback chain so a busy/unavailable HD voice degrades to the next. */
 async function azureSynthesize(text: string, lang?: string): Promise<string> {
   const region = process.env.AZURE_SPEECH_REGION as string
   const key = process.env.AZURE_SPEECH_KEY as string
-  const voice = azureVoiceFor(lang)
-  // Derive the SSML locale from the voice (e.g. es-ES-ElviraNeural → es-ES).
-  const locale = voice.split('-').slice(0, 2).join('-') || 'es-ES'
-  const ssml = `<speak version="1.0" xml:lang="${locale}"><voice name="${voice}">${escapeXml(text)}</voice></speak>`
+  const endpoint = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`
 
-  const res = await fetch(
-    `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
-    {
+  let lastErr: unknown
+  for (const voice of azureVoicesFor(lang)) {
+    // Derive the SSML locale from the voice (es-ES-Ximena:DragonHD… → es-ES).
+    const locale = voice.split('-').slice(0, 2).join('-') || 'es-ES'
+    const ssml = `<speak version="1.0" xml:lang="${locale}"><voice name="${voice}">${escapeXml(text)}</voice></speak>`
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Ocp-Apim-Subscription-Key': key,
@@ -146,10 +160,11 @@ async function azureSynthesize(text: string, lang?: string): Promise<string> {
         'User-Agent': 'inflect',
       },
       body: ssml,
-    },
-  )
-  if (!res.ok) throw new Error(`Azure TTS ${res.status}`)
-  return Buffer.from(await res.arrayBuffer()).toString('base64')
+    })
+    if (res.ok) return Buffer.from(await res.arrayBuffer()).toString('base64')
+    lastErr = new Error(`Azure TTS ${res.status} (${voice})`)
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('Azure TTS failed')
 }
 
 // ---- Gemini (fallback) ----
@@ -222,7 +237,7 @@ async function synthesize(rawText: string, lang?: string): Promise<string> {
  * the same text never collide. */
 function cacheHash(text: string, lang?: string): string {
   const providerId = azureConfigured
-    ? `azure|${azureVoiceFor(lang)}`
+    ? `azure|${azureVoicesFor(lang)[0]}`
     : `gemini|${process.env.GEMINI_TTS_MODEL ?? DEFAULT_GEMINI_MODEL}|${process.env.GEMINI_TTS_VOICE ?? DEFAULT_GEMINI_VOICE}`
   return createHash('sha256')
     .update(`${providerId}|${lang ?? ''}|${text}`)
