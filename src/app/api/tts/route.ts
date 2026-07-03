@@ -211,32 +211,58 @@ async function geminiGenerate(
   throw lastErr instanceof Error ? lastErr : new Error('TTS failed')
 }
 
+const geminiAvailable = () => !!process.env.GEMINI_API_KEY
+
+// Rules/grammar cards are sent as English but contain target-language examples
+// mixed into the same sentence ("posible ends in -ible", "querer→quiero"). A
+// single Azure voice can't switch mid-sentence, but Gemini's TTS infers the
+// language from context and pronounces each span correctly. So for English/
+// mixed text we prefer Gemini (tapped rarely, its rate limit is fine) and fall
+// back to Azure; vocab (a single target-language word) stays Azure-first, which
+// is fast, cached, and never rate-limited.
+function isMixedLang(lang?: string): boolean {
+  return (lang ?? '').slice(0, 2).toLowerCase() === 'en'
+}
+
+/** The provider tried first for this text — also determines the cache key. */
+function primaryProvider(lang?: string): 'azure' | 'gemini' {
+  if (isMixedLang(lang)) return geminiAvailable() ? 'gemini' : 'azure'
+  return azureConfigured ? 'azure' : 'gemini'
+}
+
+async function geminiSynthesize(text: string, lang?: string): Promise<string> {
+  const model = process.env.GEMINI_TTS_MODEL ?? DEFAULT_GEMINI_MODEL
+  const voiceName = process.env.GEMINI_TTS_VOICE ?? DEFAULT_GEMINI_VOICE
+  const name = languageName(lang)
+  const prompt = isMixedLang(lang)
+    ? `Read this aloud naturally. It is mostly English but contains words and short examples from another language — pronounce each non-English word in its own language with a native accent, keeping the English in English: ${text}`
+    : name
+      ? `Pronounce this ${name} word or phrase naturally, like a native speaker: ${text}`
+      : `Say this clearly and naturally: ${text}`
+  return geminiGenerate(
+    new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string }),
+    model,
+    voiceName,
+    prompt,
+  )
+}
+
 /** Try the preferred provider, then fall back. Throws if all providers fail. */
 async function synthesize(rawText: string, lang?: string): Promise<string> {
   const text = speakableText(rawText)
+  const order: Array<'azure' | 'gemini'> =
+    primaryProvider(lang) === 'gemini'
+      ? ['gemini', 'azure']
+      : ['azure', 'gemini']
+
   let lastErr: unknown
-  if (azureConfigured) {
+  for (const p of order) {
+    if (p === 'azure' && !azureConfigured) continue
+    if (p === 'gemini' && !geminiAvailable()) continue
     try {
-      return await azureSynthesize(text, lang)
-    } catch (err) {
-      lastErr = err
-    }
-  }
-  const geminiKey = process.env.GEMINI_API_KEY
-  if (geminiKey) {
-    const model = process.env.GEMINI_TTS_MODEL ?? DEFAULT_GEMINI_MODEL
-    const voiceName = process.env.GEMINI_TTS_VOICE ?? DEFAULT_GEMINI_VOICE
-    const name = languageName(lang)
-    const prompt = name
-      ? `Pronounce this ${name} word or phrase naturally, like a native speaker: ${text}`
-      : `Say this clearly and naturally: ${text}`
-    try {
-      return await geminiGenerate(
-        new GoogleGenAI({ apiKey: geminiKey }),
-        model,
-        voiceName,
-        prompt,
-      )
+      return p === 'azure'
+        ? await azureSynthesize(text, lang)
+        : await geminiSynthesize(text, lang)
     } catch (err) {
       lastErr = err
     }
@@ -244,12 +270,13 @@ async function synthesize(rawText: string, lang?: string): Promise<string> {
   throw lastErr instanceof Error ? lastErr : new Error('No TTS provider')
 }
 
-/** Cache key. Includes the provider + voice so Azure and Gemini renderings of
- * the same text never collide. */
+/** Cache key. Includes the primary provider + voice so Azure and Gemini
+ * renderings of the same text never collide. */
 function cacheHash(text: string, lang?: string): string {
-  const providerId = azureConfigured
-    ? `azure|${azureVoicesFor(lang)[0]}`
-    : `gemini|${process.env.GEMINI_TTS_MODEL ?? DEFAULT_GEMINI_MODEL}|${process.env.GEMINI_TTS_VOICE ?? DEFAULT_GEMINI_VOICE}`
+  const providerId =
+    primaryProvider(lang) === 'gemini'
+      ? `gemini|${process.env.GEMINI_TTS_MODEL ?? DEFAULT_GEMINI_MODEL}|${process.env.GEMINI_TTS_VOICE ?? DEFAULT_GEMINI_VOICE}`
+      : `azure|${azureVoicesFor(lang)[0]}`
   return createHash('sha256')
     .update(`${providerId}|${lang ?? ''}|${text}`)
     .digest('hex')
@@ -265,7 +292,8 @@ export const POST = route(async (request: Request) => {
   const { text, lang, warm } = await parseBody(request, ttsSchema)
   const hash = cacheHash(text, lang)
 
-  const provider = azureConfigured ? 'azure' : 'gemini'
+  // Drives the client's pre-warm pacing (Gemini is slow/rate-limited, Azure fast).
+  const provider = primaryProvider(lang)
 
   // Pre-warm mode: only ensure the audio is cached; skip the audio payload.
   if (warm) {
