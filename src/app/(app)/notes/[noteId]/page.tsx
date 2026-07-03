@@ -3,8 +3,10 @@
 import {
   Check,
   ChevronLeft,
+  Eye,
   Loader2,
   MoreVertical,
+  Pencil,
   Pin,
   Plus,
   Trash2,
@@ -17,6 +19,8 @@ import { toast } from 'sonner'
 
 import { ErrorState } from '@/components/common/error-state'
 import { CreateCardDialog } from '@/components/flashcard/create-card-dialog'
+import { MarkdownToolbar } from '@/components/notes/markdown-toolbar'
+import { MarkdownView } from '@/components/notes/markdown-view'
 import { useLanguage } from '@/components/providers/language-provider'
 import { Button } from '@/components/ui/button'
 import {
@@ -46,6 +50,8 @@ export default function NoteEditorPage() {
   const [content, setContent] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [cardOpen, setCardOpen] = useState(false)
+  const [mode, setMode] = useState<'edit' | 'preview'>('edit')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const initialized = useRef(false)
 
   useEffect(() => {
@@ -106,6 +112,25 @@ export default function NoteEditorPage() {
         </Button>
         <div className="flex items-center gap-2">
           <SaveIndicator status={status} />
+          {loaded && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMode((m) => (m === 'edit' ? 'preview' : 'edit'))}
+            >
+              {mode === 'edit' ? (
+                <>
+                  <Eye className="size-4" />
+                  Preview
+                </>
+              ) : (
+                <>
+                  <Pencil className="size-4" />
+                  Edit
+                </>
+              )}
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -157,14 +182,29 @@ export default function NoteEditorPage() {
             className="font-heading mt-3 w-full bg-transparent text-2xl font-semibold outline-none placeholder:text-muted-foreground/50"
             aria-label="Note title"
           />
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Write a grammar rule, an observation, an exception you keep forgetting…"
-            dir="auto"
-            className="note-content mt-3 w-full flex-1 resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-muted-foreground/50 field-sizing-content"
-            aria-label="Note content"
-          />
+          {mode === 'edit' ? (
+            <div className="mt-3 flex flex-1 flex-col">
+              <MarkdownToolbar
+                textareaRef={textareaRef}
+                value={content}
+                onChange={setContent}
+              />
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Write a grammar rule, an observation, an exception you keep forgetting… Use the toolbar to format."
+                dir="auto"
+                className="note-content mt-3 w-full flex-1 resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-muted-foreground/50 field-sizing-content"
+                aria-label="Note content"
+              />
+            </div>
+          ) : (
+            <MarkdownView
+              content={content.trim() ? content : '*Nothing to preview yet.*'}
+              className="mt-4 flex-1"
+            />
+          )}
 
           <div className="border-border mt-6 border-t pt-4">
             <div className="mb-3 flex items-center justify-between">

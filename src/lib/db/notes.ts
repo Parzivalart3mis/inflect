@@ -8,10 +8,22 @@ import { toCardDTO } from './cards'
 
 const PAGE_SIZE = 20
 
+/** Strip common Markdown so list previews read as plain text. */
+function stripMarkdown(s: string): string {
+  return s
+    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/, '') // leading block marker
+    .replace(/`([^`]+)`/g, '$1') // inline code
+    .replace(/\*\*([^*]+)\*\*/g, '$1') // bold
+    .replace(/\*([^*]+)\*/g, '$1') // italic *
+    .replace(/_([^_]+)_/g, '$1') // italic _
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1') // links → text
+    .trim()
+}
+
 export function notePreview(content: string): string {
   const firstLine = content
     .split('\n')
-    .map((l) => l.trim())
+    .map((l) => stripMarkdown(l.trim()))
     .find((l) => l.length > 0)
   const text = firstLine ?? ''
   return text.length > 140 ? text.slice(0, 140).trimEnd() + '…' : text
