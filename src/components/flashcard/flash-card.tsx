@@ -4,11 +4,9 @@ import { motion } from 'framer-motion'
 import { Loader2, Volume2 } from 'lucide-react'
 import { useState } from 'react'
 
-import { isTTSAvailable, speak, stripPhonetic } from '@/lib/tts/speak'
+import { isTTSAvailable, resolveUtterance, speak } from '@/lib/tts/speak'
 import { cn } from '@/lib/utils'
 import type { DeckKind } from '@/types/dto'
-
-const ENGLISH = 'en-US'
 
 interface Props {
   front: string
@@ -44,17 +42,18 @@ export function FlashCard({
     else setInternalFlipped((f) => !f)
   }
 
-  // Vocab → speak the target word (phonetic stripped) in the deck locale.
-  // Grammar → speak the English text.
   async function playFace(face: 'front' | 'back', e: React.MouseEvent) {
     e.stopPropagation()
-    const raw = face === 'front' ? front : (back ?? '')
-    if (!raw.trim()) return
-    const text = isVocab ? stripPhonetic(raw) : raw
-    const locale = isVocab ? localeCode : ENGLISH
+    const utt = resolveUtterance(face, {
+      front,
+      back: back ?? null,
+      isVocab,
+      localeCode,
+    })
+    if (!utt) return
     setSpeaking(face)
     try {
-      await speak(text, locale)
+      await speak(utt.text, utt.locale)
     } finally {
       setSpeaking(null)
     }

@@ -28,11 +28,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { mutateJson } from '@/lib/fetcher'
-import { isTTSAvailable, speak, stripPhonetic } from '@/lib/tts/speak'
+import { isTTSAvailable, resolveUtterance, speak } from '@/lib/tts/speak'
 import { cn } from '@/lib/utils'
 import type { CardDTO } from '@/types/dto'
-
-const ENGLISH = 'en-US'
 
 export function DeckCardTile({
   card,
@@ -55,13 +53,16 @@ export function DeckCardTile({
 
   async function playFace(face: 'front' | 'back', e: React.MouseEvent) {
     e.stopPropagation()
-    const raw = face === 'front' ? card.front : (card.back ?? '')
-    if (!raw.trim()) return
-    const text = isVocab ? stripPhonetic(raw) : raw
-    const locale = isVocab ? localeCode : ENGLISH
+    const utt = resolveUtterance(face, {
+      front: card.front,
+      back: card.back,
+      isVocab,
+      localeCode,
+    })
+    if (!utt) return
     setSpeaking(face)
     try {
-      await speak(text, locale)
+      await speak(utt.text, utt.locale)
     } finally {
       setSpeaking(null)
     }

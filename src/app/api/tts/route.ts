@@ -51,9 +51,12 @@ function azureVoicesFor(lang?: string): string[] {
 
 // Provider selection. Azure Speech is preferred when configured (high RPM,
 // native voices); Gemini is the fallback; the client uses the on-device voice
-// if neither returns audio.
-const azureConfigured =
-  !!process.env.AZURE_SPEECH_KEY && !!process.env.AZURE_SPEECH_REGION
+// if neither returns audio. Only the key is required — the region defaults to
+// the resource's region, so setting just AZURE_SPEECH_KEY is enough (a missing
+// region must not silently disable Azure and fall back to the browser voice).
+const AZURE_DEFAULT_REGION = 'eastus'
+const azureConfigured = !!process.env.AZURE_SPEECH_KEY
+const azureRegion = process.env.AZURE_SPEECH_REGION || AZURE_DEFAULT_REGION
 
 // Either auth path works: a classic read-write token, or Vercel's newer OIDC
 // flow (BLOB_STORE_ID + a runtime-injected VERCEL_OIDC_TOKEN). @vercel/blob
@@ -142,9 +145,8 @@ function escapeXml(s: string): string {
 /** Synthesize with Azure, returning base64 24kHz 16-bit mono PCM. Walks the
  * voice fallback chain so a busy/unavailable HD voice degrades to the next. */
 async function azureSynthesize(text: string, lang?: string): Promise<string> {
-  const region = process.env.AZURE_SPEECH_REGION as string
   const key = process.env.AZURE_SPEECH_KEY as string
-  const endpoint = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`
+  const endpoint = `https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`
 
   let lastErr: unknown
   for (const voice of azureVoicesFor(lang)) {
@@ -294,4 +296,35 @@ export const POST = route(async (request: Request) => {
 
   void writeCache(hash, audio)
   return NextResponse.json({ audio, sampleRate: SAMPLE_RATE, cached: false })
+})
+
+// Diagnostic: open /api/tts (signed in) to see which providers THIS deployment
+// actually sees, so a stale build or bad credential is obvious. Add ?probe=1
+// to do a live Spanish Azure synth and report the HTTP result. No secret values
+// are ever returned.
+export const GET = route(async (request: Request) => {
+  await requireUser()
+  const { searchParams } = new URL(request.url)
+
+  const status: Record<string, unknown> = {
+    azure: azureConfigured,
+    azureRegion: azureConfigured ? azureRegion : null,
+    gemini: !!process.env.GEMINI_API_KEY,
+    blobCache: hasBlob,
+  }
+
+  if (searchParams.get('probe') === '1' && azureConfigured) {
+    try {
+      const audio = await azureSynthesize('posible', 'es-ES')
+      status.probe = {
+        ok: true,
+        voice: azureVoicesFor('es-ES')[0],
+        bytes: Buffer.from(audio, 'base64').length,
+      }
+    } catch (err) {
+      status.probe = { ok: false, error: (err as Error).message }
+    }
+  }
+
+  return NextResponse.json(status)
 })
