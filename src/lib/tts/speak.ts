@@ -13,22 +13,6 @@ let inflight: AbortController | null = null
 const cache = new Map<string, AudioBuffer>()
 const MAX_CACHE = 80
 
-// iOS Safari returns an empty voice list on the first synchronous getVoices()
-// call and only populates it asynchronously via 'voiceschanged'. We warm and
-// keep a cache so the fallback can find a language-matching voice instead of
-// silently using the default (English) one — which is what makes Spanish text
-// read with English phonetics ("posible" → "aible").
-let systemVoices: SpeechSynthesisVoice[] = []
-function refreshVoices() {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
-  const v = window.speechSynthesis.getVoices()
-  if (v.length) systemVoices = v
-}
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  refreshVoices()
-  window.speechSynthesis.addEventListener?.('voiceschanged', refreshVoices)
-}
-
 function getCtx(): AudioContext {
   if (!audioCtx) {
     const Ctx =
@@ -119,15 +103,10 @@ async function playAI(
 
 function playSystem(text: string, localeCode: string) {
   if (!('speechSynthesis' in window)) return
-  const voice = pickVoice(localeCode)
-  const isEnglish = localeCode.slice(0, 2).toLowerCase() === 'en'
-  // Never read non-English text with a mismatched (English) default voice —
-  // that mispronounces it ("posible" → "aible"). Stay silent instead so the
-  // wrong pronunciation is never produced.
-  if (!voice && !isEnglish) return
   window.speechSynthesis.cancel()
   const utterance = new SpeechSynthesisUtterance(text)
   utterance.lang = localeCode
+  const voice = pickVoice(localeCode)
   if (voice) utterance.voice = voice
   window.speechSynthesis.speak(utterance)
 }
@@ -168,11 +147,15 @@ const ENGLISH_LOCALE = 'en-US'
 
 /**
  * Single source of truth for what to speak and in which language for a card
- * face. Both the flashcard and the deck-tile speaker use this so voice/locale
- * selection is never duplicated or divergent.
+ * face — used by every call site (flashcard, deck tile, review) so voice/locale
+ * selection is never duplicated or divergent. The server (azureVoicesFor) then
+ * maps the locale to the actual voice.
  *
- * - Vocab: the target-language word (phonetic guide stripped) in the deck locale.
- * - Grammar: the English rule/exception, spoken in English.
+ * - Vocab: the target-language word (phonetic guide stripped) in the deck locale
+ *   (es-ES → Spanish voice, ja-JP → Japanese voice).
+ * - Grammar/rules: the English explanation (which may contain Spanish examples)
+ *   in English — the server uses a multilingual voice so embedded Spanish spans
+ *   are pronounced in Spanish.
  *
  * Returns null when there's nothing to speak.
  */
@@ -296,8 +279,7 @@ export function stripPhonetic(text: string): string {
 
 function pickVoice(localeCode: string): SpeechSynthesisVoice | null {
   if (!('speechSynthesis' in window)) return null
-  if (!systemVoices.length) refreshVoices()
-  const voices = systemVoices
+  const voices = window.speechSynthesis.getVoices()
   if (!voices.length) return null
   const lower = localeCode.toLowerCase()
   const lang = lower.split('-')[0]
