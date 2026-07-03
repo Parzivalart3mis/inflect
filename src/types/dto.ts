@@ -30,6 +30,7 @@ export interface DeckDTO {
   cardCount: number
   dueToday: number
   buckets: BucketCounts
+  pinnedAt: string | null
   createdAt: string
 }
 
@@ -64,6 +65,7 @@ export interface NoteDTO {
   content: string
   preview: string
   linkedCardCount: number
+  pinnedAt: string | null
   createdAt: string
   updatedAt: string
 }

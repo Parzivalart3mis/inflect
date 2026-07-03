@@ -15,6 +15,13 @@
       "when": 1782684070289,
       "tag": "0001_outgoing_sasquatch",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783038116442,
+      "tag": "0002_complete_salo",
+      "breakpoints": true
     }
   ]
 }

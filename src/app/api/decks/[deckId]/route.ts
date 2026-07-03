@@ -25,6 +25,9 @@ export const PATCH = route(async (request: Request, ctx: Ctx) => {
       ...(body.description !== undefined
         ? { description: body.description }
         : {}),
+      ...(body.pinned !== undefined
+        ? { pinnedAt: body.pinned ? new Date() : null }
+        : {}),
     })
     .where(and(eq(decks.id, deckId), eq(decks.userId, user.id)))
     .returning()
@@ -33,6 +36,7 @@ export const PATCH = route(async (request: Request, ctx: Ctx) => {
     id: updated.id,
     name: updated.name,
     description: updated.description,
+    pinnedAt: updated.pinnedAt?.toISOString() ?? null,
   })
 })
 

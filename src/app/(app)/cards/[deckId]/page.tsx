@@ -8,6 +8,7 @@ import {
   Loader2,
   MoreVertical,
   Pencil,
+  Pin,
   Play,
   Plus,
   Search,
@@ -106,6 +107,18 @@ export default function DeckDetailPage() {
     }
   }
 
+  async function togglePin() {
+    if (!data) return
+    const pinned = !!data.deck.pinnedAt
+    try {
+      await mutateJson(`/api/decks/${deckId}`, 'PATCH', { pinned: !pinned })
+      mutate()
+      toast.success(pinned ? 'Unpinned' : 'Pinned to top')
+    } catch {
+      toast.error('Could not update deck')
+    }
+  }
+
   async function startPrewarm() {
     if (!data) return
     const jobs = buildTtsJobs(cards, localeCode)
@@ -161,6 +174,10 @@ export default function DeckDetailPage() {
               <DropdownMenuItem onClick={() => setEditOpen(true)}>
                 <Pencil className="size-4" />
                 Edit deck
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={togglePin}>
+                <Pin className="size-4" />
+                {data.deck.pinnedAt ? 'Unpin' : 'Pin to top'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setBulkOpen(true)}>
                 <Upload className="size-4" />

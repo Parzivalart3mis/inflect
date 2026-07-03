@@ -36,10 +36,15 @@ export const deckUpdateSchema = z
   .object({
     name: z.string().min(1).max(100).optional(),
     description: z.string().max(300).nullable().optional(),
+    pinned: z.boolean().optional(),
   })
-  .refine((v) => v.name !== undefined || v.description !== undefined, {
-    message: 'Nothing to update',
-  })
+  .refine(
+    (v) =>
+      v.name !== undefined ||
+      v.description !== undefined ||
+      v.pinned !== undefined,
+    { message: 'Nothing to update' },
+  )
 
 // ---------------- Cards ----------------
 export const cardCreateSchema = z.object({
@@ -83,10 +88,15 @@ export const noteUpdateSchema = z
   .object({
     title: z.string().max(200).optional(),
     content: z.string().max(100_000).optional(),
+    pinned: z.boolean().optional(),
   })
-  .refine((v) => v.title !== undefined || v.content !== undefined, {
-    message: 'Nothing to update',
-  })
+  .refine(
+    (v) =>
+      v.title !== undefined ||
+      v.content !== undefined ||
+      v.pinned !== undefined,
+    { message: 'Nothing to update' },
+  )
 
 // ---------------- Coach ----------------
 export const ttsSchema = z.object({

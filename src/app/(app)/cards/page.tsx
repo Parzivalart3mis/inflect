@@ -133,7 +133,7 @@ export default function CardsPage() {
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {visibleDecks.map((deck) => (
             <li key={deck.id}>
-              <DeckCard deck={deck} />
+              <DeckCard deck={deck} onChanged={() => mutate()} />
             </li>
           ))}
         </ul>

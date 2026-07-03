@@ -114,7 +114,7 @@ export default function NotesPage() {
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {notes.map((note) => (
             <li key={note.id}>
-              <NoteListItem note={note} />
+              <NoteListItem note={note} onChanged={() => mutate()} />
             </li>
           ))}
         </ul>

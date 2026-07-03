@@ -1,5 +1,11 @@
-import Link from 'next/link'
+'use client'
 
+import Link from 'next/link'
+import { Pin } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
+
+import { mutateJson } from '@/lib/fetcher'
 import type { DeckDTO } from '@/types/dto'
 import { cn } from '@/lib/utils'
 
@@ -10,14 +16,49 @@ const BUCKET_META: { key: keyof DeckDTO['buckets']; label: string; className: st
   { key: 'mastered', label: 'Mastered', className: 'bg-chart-4' },
 ]
 
-export function DeckCard({ deck }: { deck: DeckDTO }) {
+export function DeckCard({
+  deck,
+  onChanged,
+}: {
+  deck: DeckDTO
+  onChanged?: () => void
+}) {
   const total = deck.cardCount || 1
+  const pinned = !!deck.pinnedAt
+  const [busy, setBusy] = useState(false)
+
+  async function togglePin(e: React.MouseEvent) {
+    e.preventDefault() // don't follow the stretched link
+    e.stopPropagation()
+    if (busy) return
+    setBusy(true)
+    try {
+      await mutateJson(`/api/decks/${deck.id}`, 'PATCH', { pinned: !pinned })
+      onChanged?.()
+    } catch {
+      toast.error('Could not update deck')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
-    <Link
-      href={`/cards/${deck.id}`}
-      className="border-border bg-card hover:border-primary/40 flex h-full min-h-32 flex-col rounded-xl border p-3 transition-colors"
+    <div
+      className={cn(
+        'relative flex h-full min-h-32 flex-col rounded-xl border p-3 transition-colors',
+        pinned
+          ? 'border-primary/40 bg-primary/5'
+          : 'border-border bg-card hover:border-primary/40',
+      )}
     >
+      {/* Stretched link: covers the tile for navigation; the pin button sits
+          above it via a higher z-index. */}
+      <Link
+        href={`/cards/${deck.id}`}
+        aria-label={deck.name}
+        className="absolute inset-0 z-0 rounded-xl"
+      />
+
       <div className="flex items-start justify-between gap-2">
         {deck.kind === 'vocab' ? (
           <span className="bg-secondary text-secondary-foreground shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium">
@@ -28,11 +69,25 @@ export function DeckCard({ deck }: { deck: DeckDTO }) {
             Grammar
           </span>
         )}
-        {deck.dueToday > 0 && (
-          <span className="bg-cta text-cta-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold">
-            {deck.dueToday} due
-          </span>
-        )}
+        <div className="flex items-center gap-1">
+          {deck.dueToday > 0 && (
+            <span className="bg-cta text-cta-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold">
+              {deck.dueToday} due
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={togglePin}
+            disabled={busy}
+            aria-pressed={pinned}
+            aria-label={pinned ? 'Unpin deck' : 'Pin deck to top'}
+            className="text-muted-foreground hover:text-foreground relative z-10 -m-1 shrink-0 rounded-full p-1 transition-colors"
+          >
+            <Pin
+              className={cn('size-3.5', pinned && 'text-primary fill-current')}
+            />
+          </button>
+        </div>
       </div>
 
       <h3 className="font-heading text-foreground mt-2 line-clamp-2 text-sm font-semibold">
@@ -62,6 +117,6 @@ export function DeckCard({ deck }: { deck: DeckDTO }) {
           </div>
         )}
       </div>
-    </Link>
+    </div>
   )
 }

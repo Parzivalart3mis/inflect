@@ -27,17 +27,28 @@ export const PATCH = route(async (request: Request, ctx: Ctx) => {
   const existing = await getOwnedNote(user.id, noteId)
   if (!existing) throw Errors.notFound('Note')
 
-  await enforceRateLimit('noteWrite', user.id, 'Too many note saves this hour')
+  const isContentEdit = body.title !== undefined || body.content !== undefined
 
-  const nextContent = body.content ?? existing.content
-  const nextTitle =
-    body.title !== undefined
-      ? body.title.slice(0, 200)
-      : deriveTitle(existing.title, nextContent)
+  // A pin-only toggle is lightweight: no rate limit, and it must not bump
+  // updatedAt (which would reorder the note in the list).
+  const values: Partial<typeof notes.$inferInsert> = {}
+  if (isContentEdit) {
+    await enforceRateLimit('noteWrite', user.id, 'Too many note saves this hour')
+    const nextContent = body.content ?? existing.content
+    values.title =
+      body.title !== undefined
+        ? body.title.slice(0, 200)
+        : deriveTitle(existing.title, nextContent)
+    values.content = nextContent
+    values.updatedAt = new Date()
+  }
+  if (body.pinned !== undefined) {
+    values.pinnedAt = body.pinned ? new Date() : null
+  }
 
   const [updated] = await db
     .update(notes)
-    .set({ title: nextTitle, content: nextContent, updatedAt: new Date() })
+    .set(values)
     .where(and(eq(notes.id, noteId), eq(notes.userId, user.id)))
     .returning()
 
@@ -45,6 +56,7 @@ export const PATCH = route(async (request: Request, ctx: Ctx) => {
     id: updated.id,
     title: updated.title,
     content: updated.content,
+    pinnedAt: updated.pinnedAt?.toISOString() ?? null,
     updatedAt: updated.updatedAt.toISOString(),
   })
 })

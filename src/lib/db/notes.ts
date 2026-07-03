@@ -28,6 +28,7 @@ function toNoteDTO(
     content: row.content,
     preview: notePreview(row.content),
     linkedCardCount,
+    pinnedAt: row.pinnedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -57,18 +58,22 @@ export async function listNotes({
         )
       : base
 
+  // Search results stay relevance-ranked; the default list floats pinned notes
+  // to the top (most-recently-pinned first), then by last edited.
   const order =
     trimmed && trimmed.length > 0
-      ? desc(
-          sql`ts_rank(${notes.searchVector}, plainto_tsquery('english', ${trimmed}))`,
-        )
-      : desc(notes.updatedAt)
+      ? [
+          desc(
+            sql`ts_rank(${notes.searchVector}, plainto_tsquery('english', ${trimmed}))`,
+          ),
+        ]
+      : [sql`${notes.pinnedAt} desc nulls last`, desc(notes.updatedAt)]
 
   const rows = await db
     .select()
     .from(notes)
     .where(where)
-    .orderBy(order)
+    .orderBy(...order)
     .limit(PAGE_SIZE + 1)
     .offset(page * PAGE_SIZE)
 

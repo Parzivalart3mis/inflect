@@ -1,6 +1,14 @@
 'use client'
 
-import { Check, ChevronLeft, Loader2, MoreVertical, Plus, Trash2 } from 'lucide-react'
+import {
+  Check,
+  ChevronLeft,
+  Loader2,
+  MoreVertical,
+  Pin,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -72,6 +80,18 @@ export default function NoteEditorPage() {
     }
   }
 
+  async function togglePin() {
+    if (!data) return
+    const pinned = !!data.note.pinnedAt
+    try {
+      await mutateJson(`/api/notes/${noteId}`, 'PATCH', { pinned: !pinned })
+      mutate()
+      toast.success(pinned ? 'Unpinned' : 'Pinned to top')
+    } catch {
+      toast.error('Could not update note')
+    }
+  }
+
   return (
     <div className="flex min-h-[calc(100dvh-3.5rem)] flex-col">
       <div className="sticky top-14 -mx-4 flex items-center justify-between gap-2 bg-background/90 px-4 py-2 backdrop-blur">
@@ -95,6 +115,10 @@ export default function NoteEditorPage() {
               <MoreVertical className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={togglePin}>
+                <Pin className="size-4" />
+                {data?.note.pinnedAt ? 'Unpin' : 'Pin to top'}
+              </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
                 onClick={deleteNote}

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, sql } from 'drizzle-orm'
 
 import type { Bucket } from '@/lib/srs/sm2'
 import type { BucketCounts, CardDTO, DeckDTO, DeckKind } from '@/types/dto'
@@ -81,7 +81,8 @@ export async function listDecks(
     .leftJoin(flashcards, eq(flashcards.deckId, decks.id))
     .leftJoin(srsProgress, eq(srsProgress.cardId, flashcards.id))
     .where(and(eq(decks.userId, userId), eq(decks.languageId, languageId)))
-    .orderBy(desc(decks.createdAt))
+    // Pinned decks first (most-recently-pinned on top), then newest.
+    .orderBy(sql`${decks.pinnedAt} desc nulls last`, desc(decks.createdAt))
 
   const cutoff = endOfToday()
   const map = new Map<string, DeckDTO>()
@@ -98,6 +99,7 @@ export async function listDecks(
         cardCount: 0,
         dueToday: 0,
         buckets: emptyBuckets(),
+        pinnedAt: row.deck.pinnedAt?.toISOString() ?? null,
         createdAt: row.deck.createdAt.toISOString(),
       }
       map.set(row.deck.id, dto)
