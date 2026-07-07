@@ -43,19 +43,12 @@ import { mutateJson } from '@/lib/fetcher'
 import { prewarmTTS, stripPhonetic, type PrewarmJob } from '@/lib/tts/speak'
 import type { CardDTO, DeckDTO } from '@/types/dto'
 
-const ENGLISH = 'en-US'
-
-/** Build the TTS jobs for a deck's cards, matching the speaker-by-kind rules. */
+/** Build the TTS jobs for a deck's cards — the target-language word on each back. */
 function buildTtsJobs(cards: CardDTO[], localeCode: string): PrewarmJob[] {
   const jobs: PrewarmJob[] = []
   for (const c of cards) {
-    if (c.deckKind === 'vocab') {
-      const word = stripPhonetic(c.back ?? '')
-      if (word) jobs.push({ text: word, lang: localeCode })
-    } else {
-      if (c.front.trim()) jobs.push({ text: c.front, lang: ENGLISH })
-      if (c.back && c.back.trim()) jobs.push({ text: c.back, lang: ENGLISH })
-    }
+    const word = stripPhonetic(c.back ?? '')
+    if (word) jobs.push({ text: word, lang: localeCode })
   }
   return jobs
 }
@@ -88,13 +81,11 @@ export default function DeckDetailPage() {
     (c) => c.isPinned || !c.srs || new Date(c.srs.dueDate) <= new Date(),
   ).length
 
-  const isVocab = data?.deck.kind === 'vocab'
   const q = query.trim().toLowerCase()
-  // Vocab decks are searchable by the English front word.
-  const filteredCards =
-    isVocab && q
-      ? cards.filter((c) => c.front.toLowerCase().includes(q))
-      : cards
+  // Decks are searchable by the English front word.
+  const filteredCards = q
+    ? cards.filter((c) => c.front.toLowerCase().includes(q))
+    : cards
 
   async function deleteDeck() {
     if (!data) return
@@ -221,13 +212,8 @@ export default function DeckDetailPage() {
       {data && (
         <>
           <div className="pt-4 pb-3">
-            <h1 className="font-heading flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            <h1 className="font-heading text-2xl font-semibold tracking-tight">
               {data.deck.name}
-              {data.deck.kind === 'vocab' && (
-                <span className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-[11px] font-medium">
-                  Vocab
-                </span>
-              )}
             </h1>
             {data.deck.description && (
               <p className="text-muted-foreground mt-0.5 text-sm">
@@ -300,21 +286,19 @@ export default function DeckDetailPage() {
             />
           ) : (
             <>
-              {isVocab && (
-                <div className="relative mb-4">
-                  <Search
-                    className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2"
-                    aria-hidden
-                  />
-                  <Input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search English words…"
-                    className="pl-9"
-                    aria-label="Search cards"
-                  />
-                </div>
-              )}
+              <div className="relative mb-4">
+                <Search
+                  className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2"
+                  aria-hidden
+                />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search English words…"
+                  className="pl-9"
+                  aria-label="Search cards"
+                />
+              </div>
 
               {filteredCards.length === 0 ? (
                 <p className="text-muted-foreground py-8 text-center text-sm">

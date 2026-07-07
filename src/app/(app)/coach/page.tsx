@@ -33,16 +33,12 @@ export default function CoachPage() {
     activeLanguageId ? `/api/coach/sessions?languageId=${activeLanguageId}` : null,
   )
 
-  // Grammar decks first, then vocab; each alphabetical — so the collapsed
-  // first-10 view is stable and predictable rather than raw API order.
+  // Alphabetical, so the collapsed first-10 view is stable and predictable
+  // rather than raw API order.
   const sortedDecks = useMemo(() => {
     if (!decks) return []
     return [...decks].sort((a, b) =>
-      a.kind !== b.kind
-        ? a.kind === 'grammar'
-          ? -1
-          : 1
-        : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
     )
   }, [decks])
 
@@ -165,7 +161,6 @@ export default function CoachPage() {
             <div className="flex flex-wrap gap-2">
               {visibleDecks.map((deck) => {
                 const on = selected.includes(deck.id)
-                const isVocab = deck.kind === 'vocab'
                 return (
                   <button
                     key={deck.id}
@@ -173,29 +168,13 @@ export default function CoachPage() {
                     onClick={() => toggleDeck(deck.id)}
                     aria-pressed={on}
                     className={cn(
-                      'inline-flex items-center gap-1.5 rounded-full border py-1.5 pr-3 pl-1.5 text-sm transition-colors',
+                      'rounded-full border px-3 py-1.5 text-sm transition-colors',
                       on
                         ? 'border-primary bg-primary text-primary-foreground'
                         : 'border-border bg-background hover:bg-accent',
                     )}
                   >
-                    <span
-                      aria-hidden
-                      className={cn(
-                        'flex size-5 items-center justify-center rounded-full text-[10px] font-bold',
-                        on
-                          ? 'bg-primary-foreground/20 text-primary-foreground'
-                          : isVocab
-                            ? 'bg-secondary text-secondary-foreground'
-                            : 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      {isVocab ? 'V' : 'G'}
-                    </span>
-                    <span>{deck.name}</span>
-                    <span className="sr-only">
-                      {isVocab ? 'Vocab' : 'Grammar'} deck
-                    </span>
+                    {deck.name}
                   </button>
                 )
               })}

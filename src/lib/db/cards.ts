@@ -25,7 +25,7 @@ export function endOfToday(now: Date = new Date()): Date {
 export function toCardDTO(
   card: CardRow,
   srs: SrsRow | null,
-  deckKind: DeckKind = 'grammar',
+  deckKind: DeckKind = 'vocab',
 ): CardDTO {
   return {
     id: card.id,
@@ -133,7 +133,7 @@ export async function listDeckCards(
     .orderBy(asc(flashcards.createdAt))
 
   const cards = rows.map((r) => toCardDTO(r.card, r.srs, r.kind))
-  return sortCardsForDeck(cards, rows[0]?.kind ?? 'grammar')
+  return sortCardsForDeck(cards, rows[0]?.kind ?? 'vocab')
 }
 
 /** Recompute and persist a deck's denormalized card_count. */
@@ -192,7 +192,7 @@ export async function insertCard(input: InsertCardInput): Promise<CardDTO> {
     .select({ kind: decks.kind })
     .from(decks)
     .where(eq(decks.id, input.deckId))
-  return toCardDTO(card, srs, deck?.kind ?? 'grammar')
+  return toCardDTO(card, srs, deck?.kind ?? 'vocab')
 }
 
 /** Bulk insert cards (and their SRS rows) into a single deck. */
@@ -236,7 +236,7 @@ export async function insertCardsBulk(
     .select({ kind: decks.kind })
     .from(decks)
     .where(eq(decks.id, deckId))
-  const kind = deck?.kind ?? 'grammar'
+  const kind = deck?.kind ?? 'vocab'
   return inserted.map((card) =>
     toCardDTO(card, srsByCard.get(card.id) ?? null, kind),
   )

@@ -158,8 +158,6 @@ export function ReviewSession({
             <FlashCard
               front={current.front}
               back={current.back}
-              hasException={current.hasException}
-              kind={current.deckKind}
               localeCode={localeCode}
               flipped={flipped}
               onFlipChange={setFlipped}

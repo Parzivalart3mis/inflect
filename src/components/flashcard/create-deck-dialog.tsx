@@ -1,7 +1,7 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -17,30 +17,20 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { mutateJson } from '@/lib/fetcher'
-import { cn } from '@/lib/utils'
-import type { DeckKind } from '@/types/dto'
 
 export function CreateDeckDialog({
   open,
   onOpenChange,
   languageId,
-  defaultKind = 'grammar',
   onCreated,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   languageId: string
-  defaultKind?: DeckKind
   onCreated?: (deckId: string) => void
 }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [kind, setKind] = useState<DeckKind>(defaultKind)
-
-  // Default the type to the caller's active tab each time the dialog opens.
-  useEffect(() => {
-    if (open) setKind(defaultKind)
-  }, [open, defaultKind])
   const [saving, setSaving] = useState(false)
 
   async function submit() {
@@ -57,7 +47,6 @@ export function CreateDeckDialog({
           languageId,
           name: name.trim(),
           description: description.trim() || undefined,
-          kind,
         },
       )
       toast.success('Deck created')
@@ -65,7 +54,6 @@ export function CreateDeckDialog({
       onOpenChange(false)
       setName('')
       setDescription('')
-      setKind('grammar')
     } catch {
       toast.error('Could not create deck')
     } finally {
@@ -79,64 +67,17 @@ export function CreateDeckDialog({
         <DialogHeader>
           <DialogTitle>New deck</DialogTitle>
           <DialogDescription>
-            Group related cards by topic, e.g. “Ser vs Estar”.
+            Group related words by topic, e.g. “Food & drink”.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-1">
-          <div className="grid gap-2">
-            <Label>Type</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {(
-                [
-                  {
-                    value: 'grammar',
-                    title: 'Grammar',
-                    desc: 'Rule + exception',
-                  },
-                  {
-                    value: 'vocab',
-                    title: 'Vocab',
-                    desc: 'Word + pronunciation',
-                  },
-                ] as const
-              ).map((opt) => {
-                const on = kind === opt.value
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setKind(opt.value)}
-                    aria-pressed={on}
-                    className={cn(
-                      'flex flex-col gap-0.5 rounded-xl border p-3 text-left transition-colors',
-                      on
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border bg-background hover:bg-accent',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'text-sm font-semibold',
-                        on ? 'text-primary' : 'text-foreground',
-                      )}
-                    >
-                      {opt.title}
-                    </span>
-                    <span className="text-muted-foreground text-xs">
-                      {opt.desc}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
           <div className="grid gap-2">
             <Label htmlFor="deck-name">Name</Label>
             <Input
               id="deck-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Verb Conjugation"
+              placeholder="Food & drink"
               maxLength={100}
             />
           </div>

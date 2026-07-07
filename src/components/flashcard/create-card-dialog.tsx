@@ -64,12 +64,10 @@ export function CreateCardDialog({
   const effectiveChoice =
     deckChoice ?? defaultDeckId ?? decks?.[0]?.id ?? NEW_DECK
   const isNewDeck = effectiveChoice === NEW_DECK || (decks && decks.length === 0)
-  const isVocab =
-    !isNewDeck && decks?.find((d) => d.id === effectiveChoice)?.kind === 'vocab'
 
   async function submit() {
     if (!front.trim()) {
-      toast.error('A rule (front) is required')
+      toast.error('A word (front) is required')
       return
     }
     setSaving(true)
@@ -119,15 +117,7 @@ export function CreateCardDialog({
         <DialogHeader>
           <DialogTitle>New flashcard</DialogTitle>
           <DialogDescription>
-            {isVocab ? (
-              'The word goes on the front; its pronunciation on the back.'
-            ) : (
-              <>
-                The rule goes on the front; an optional exception on the back
-                shows a <span className="text-exception font-semibold">!</span>{' '}
-                badge.
-              </>
-            )}
+            {'The word goes on the front; its pronunciation on the back.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -172,16 +162,12 @@ export function CreateCardDialog({
           )}
 
           <div className="grid gap-2">
-            <Label htmlFor="card-front">
-              {isVocab ? 'Word (front)' : 'Rule (front)'}
-            </Label>
+            <Label htmlFor="card-front">Word (front)</Label>
             <Textarea
               id="card-front"
               value={front}
               onChange={(e) => setFront(e.target.value)}
-              placeholder={
-                isVocab ? 'hola' : '“ser” is used for permanent traits'
-              }
+              placeholder="hello"
               rows={2}
               dir="auto"
               maxLength={1000}
@@ -189,18 +175,12 @@ export function CreateCardDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="card-back">
-              {isVocab
-                ? 'Pronunciation (back)'
-                : 'Exception (back, optional)'}
-            </Label>
+            <Label htmlFor="card-back">Pronunciation (back)</Label>
             <Textarea
               id="card-back"
               value={back}
               onChange={(e) => setBack(e.target.value)}
-              placeholder={
-                isVocab ? 'OH-lah' : '…except with emotions and conditions'
-              }
+              placeholder={'hola\n(OH-lah)'}
               rows={2}
               dir="auto"
               maxLength={1000}

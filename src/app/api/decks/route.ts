@@ -32,7 +32,7 @@ export const POST = route(async (request: Request) => {
       languageId: body.languageId,
       name: body.name,
       description: body.description,
-      kind: body.kind ?? 'grammar',
+      kind: 'vocab',
     })
     .returning({ id: decks.id })
 

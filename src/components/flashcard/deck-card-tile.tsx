@@ -14,13 +14,6 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { EditCardDialog } from '@/components/flashcard/edit-card-dialog'
-import { FlashCard } from '@/components/flashcard/flash-card'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,19 +37,15 @@ export function DeckCardTile({
   const [flipped, setFlipped] = useState(false)
   const [speaking, setSpeaking] = useState<'front' | 'back' | null>(null)
   const [editOpen, setEditOpen] = useState(false)
-  const [enlargedOpen, setEnlargedOpen] = useState(false)
 
-  const isVocab = card.deckKind === 'vocab'
-  const ttsAvailable = isTTSAvailable()
-  const showFrontSpeaker = ttsAvailable && !isVocab
-  const showBackSpeaker = ttsAvailable && !!card.back
+  const showBackSpeaker = isTTSAvailable() && !!card.back
 
   async function playFace(face: 'front' | 'back', e: React.MouseEvent) {
     e.stopPropagation()
     const utt = resolveUtterance(face, {
       front: card.front,
       back: card.back,
-      isVocab,
+      isVocab: true,
       localeCode,
     })
     if (!utt) return
@@ -95,14 +84,6 @@ export function DeckCardTile({
         {/* Static overlay — badges + menu don't rotate with the card */}
         <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-2">
           <div className="flex flex-col items-start gap-1">
-            {card.hasException && !isVocab && (
-              <span
-                className="bg-exception flex size-5 items-center justify-center rounded-full border-2 border-white text-[11px] font-bold text-white shadow"
-                aria-label="Has an exception"
-              >
-                !
-              </span>
-            )}
             {card.isPinned && (
               <Pin
                 className="text-cta size-3.5 fill-current drop-shadow"
@@ -149,24 +130,13 @@ export function DeckCardTile({
           </div>
         </div>
 
-        {/* Vocab flips in place; grammar (rules) enlarges into a popup first. */}
         <motion.div
           className="preserve-3d relative h-full w-full cursor-pointer"
-          onClick={() =>
-            isVocab
-              ? card.back && setFlipped((f) => !f)
-              : setEnlargedOpen(true)
-          }
+          onClick={() => card.back && setFlipped((f) => !f)}
           animate={{ rotateY: flipped ? 180 : 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           role="button"
-          aria-label={
-            isVocab
-              ? flipped
-                ? 'Showing pronunciation'
-                : 'Showing word'
-              : 'Enlarge card'
-          }
+          aria-label={flipped ? 'Showing pronunciation' : 'Showing word'}
         >
           {/* Front */}
           <div className="backface-hidden bg-card border-border absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl border px-3 py-7 shadow-sm">
@@ -176,22 +146,15 @@ export function DeckCardTile({
             >
               {card.front}
             </p>
-            {showFrontSpeaker && (
-              <SpeakerButton
-                loading={speaking === 'front'}
-                onClick={(e) => playFace('front', e)}
-                className="text-primary"
-              />
-            )}
             <span className="text-muted-foreground/40 absolute bottom-1.5 text-[10px]">
-              {isVocab ? (card.back ? 'tap to flip' : '') : 'tap to open'}
+              {card.back ? 'tap to flip' : ''}
             </span>
           </div>
 
           {/* Back */}
           <div className="backface-hidden bg-primary absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-xl px-3 py-7 shadow-sm [transform:rotateY(180deg)]">
             <span className="text-primary-foreground/60 text-[10px] font-semibold tracking-wide uppercase">
-              {isVocab ? 'Pronunciation' : 'Exception'}
+              Pronunciation
             </span>
             <p
               className="flashcard-content text-primary-foreground line-clamp-4 whitespace-pre-line text-center text-sm font-medium"
@@ -216,22 +179,6 @@ export function DeckCardTile({
         card={card}
         onSaved={onChanged}
       />
-
-      {/* Grammar: enlarged popup; tapping the card inside flips it. */}
-      {!isVocab && (
-        <Dialog open={enlargedOpen} onOpenChange={setEnlargedOpen}>
-          <DialogContent className="max-w-sm">
-            <DialogTitle className="sr-only">Flashcard</DialogTitle>
-            <FlashCard
-              front={card.front}
-              back={card.back}
-              hasException={card.hasException}
-              kind={card.deckKind}
-              localeCode={localeCode}
-            />
-          </DialogContent>
-        </Dialog>
-      )}
     </>
   )
 }

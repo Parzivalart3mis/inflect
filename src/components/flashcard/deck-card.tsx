@@ -59,16 +59,7 @@ export function DeckCard({
         className="absolute inset-0 z-0 rounded-xl"
       />
 
-      <div className="flex items-start justify-between gap-2">
-        {deck.kind === 'vocab' ? (
-          <span className="bg-secondary text-secondary-foreground shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium">
-            Vocab
-          </span>
-        ) : (
-          <span className="text-muted-foreground/70 text-[10px] font-medium tracking-wide uppercase">
-            Grammar
-          </span>
-        )}
+      <div className="flex items-start justify-end gap-2">
         <div className="flex items-center gap-1">
           {deck.dueToday > 0 && (
             <span className="bg-cta text-cta-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold">

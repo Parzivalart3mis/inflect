@@ -49,7 +49,7 @@ export function buildSystemPrompt(input: BuildSystemPromptInput): string {
       ? sessionGoal.trim()
       : `Open practice — help the user speak and think in ${languageName}`
 
-  const context = `## Their Grammar Rules (Flashcards)
+  const context = `## Their Vocabulary (Flashcards)
 ${cardsBlock}
 
 ## Their Notes
