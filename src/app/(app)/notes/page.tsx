@@ -2,8 +2,8 @@
 
 import { NotebookPen, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import useSWR from 'swr'
+import { useEffect, useState } from 'react'
+import useSWRInfinite from 'swr/infinite'
 import { toast } from 'sonner'
 
 import { EmptyState } from '@/components/common/empty-state'
@@ -26,15 +26,28 @@ export default function NotesPage() {
   const [creating, setCreating] = useState(false)
   const debouncedQuery = useDebouncedValue(query, 300)
 
-  const key = activeLanguageId
-    ? `/api/notes?languageId=${activeLanguageId}` +
-      (debouncedQuery ? `&q=${encodeURIComponent(debouncedQuery)}` : '')
-    : null
+  type NotesPage = { notes: NoteDTO[]; hasMore: boolean }
 
-  const { data, error, isLoading, mutate } = useSWR<{
-    notes: NoteDTO[]
-    hasMore: boolean
-  }>(key)
+  const getKey = (index: number, prev: NotesPage | null) => {
+    if (!activeLanguageId) return null
+    if (prev && !prev.hasMore) return null // reached the end
+    const base = `/api/notes?languageId=${activeLanguageId}&page=${index}`
+    return debouncedQuery
+      ? `${base}&q=${encodeURIComponent(debouncedQuery)}`
+      : base
+  }
+
+  const { data, error, isLoading, size, setSize, mutate } =
+    useSWRInfinite<NotesPage>(getKey)
+
+  // Start over at page 0 whenever the search query changes.
+  useEffect(() => {
+    setSize(1)
+  }, [debouncedQuery, setSize])
+
+  const hasMore = data ? (data[data.length - 1]?.hasMore ?? false) : false
+  const isLoadingMore =
+    size > 0 && !!data && typeof data[size - 1] === 'undefined'
 
   async function createNote() {
     if (!activeLanguageId) return
@@ -51,7 +64,7 @@ export default function NotesPage() {
     }
   }
 
-  const notes = data?.notes ?? []
+  const notes = data?.flatMap((p) => p.notes) ?? []
   const searching = debouncedQuery.length > 0
 
   return (
@@ -111,13 +124,26 @@ export default function NotesPage() {
       )}
 
       {notes.length > 0 && (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {notes.map((note) => (
-            <li key={note.id}>
-              <NoteListItem note={note} onChanged={() => mutate()} />
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {notes.map((note) => (
+              <li key={note.id}>
+                <NoteListItem note={note} onChanged={() => mutate()} />
+              </li>
+            ))}
+          </ul>
+          {hasMore && (
+            <div className="mt-4 flex justify-center">
+              <Button
+                variant="outline"
+                onClick={() => setSize(size + 1)}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? 'Loading…' : 'Load more'}
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
       <Fab onClick={createNote} label="New note" disabled={creating} />
