@@ -98,6 +98,7 @@ export async function listDecks(
         kind: row.deck.kind,
         cardCount: 0,
         dueToday: 0,
+        pinnedCount: 0,
         buckets: emptyBuckets(),
         pinnedAt: row.deck.pinnedAt?.toISOString() ?? null,
         createdAt: row.deck.createdAt.toISOString(),
@@ -110,6 +111,7 @@ export async function listDecks(
     dto.buckets[bucket] += 1
     const due = !row.dueDate || row.dueDate <= cutoff
     if (due || row.isPinned) dto.dueToday += 1
+    if (row.isPinned) dto.pinnedCount += 1
   }
 
   return [...map.values()]

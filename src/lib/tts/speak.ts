@@ -14,14 +14,63 @@ const cache = new Map<string, AudioBuffer>()
 const MAX_CACHE = 80
 
 function getCtx(): AudioContext {
-  if (!audioCtx) {
+  // A context that iOS closed after an interruption can't be revived — make a
+  // fresh one. Buffers are bound to a context, so drop the decoded cache too.
+  if (!audioCtx || audioCtx.state === 'closed') {
     const Ctx =
       window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext })
         .webkitAudioContext
     audioCtx = new Ctx()
+    cache.clear()
   }
   return audioCtx
+}
+
+/**
+ * Ensure a usable, running context. iOS puts the context into `suspended` or
+ * `interrupted` when the phone locks/backgrounds; on return we must resume it,
+ * and if that fails (or it was closed) recreate it. Returns a running context.
+ */
+async function getRunningCtx(): Promise<AudioContext> {
+  let ctx = getCtx()
+  if (ctx.state !== 'running') {
+    try {
+      await ctx.resume()
+    } catch {
+      // fall through to recreate
+    }
+  }
+  if (ctx.state !== 'running') {
+    try {
+      await ctx.close()
+    } catch {
+      // ignore
+    }
+    audioCtx = null
+    cache.clear()
+    ctx = getCtx()
+    try {
+      await ctx.resume()
+    } catch {
+      // best effort; start() below will reveal if it's truly unusable
+    }
+  }
+  return ctx
+}
+
+// Proactively resume when the app comes back to the foreground so the first tap
+// after unlocking works without a dropped play.
+if (typeof window !== 'undefined') {
+  const wake = () => {
+    if (audioCtx && audioCtx.state !== 'running' && audioCtx.state !== 'closed') {
+      audioCtx.resume().catch(() => {})
+    }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') wake()
+  })
+  window.addEventListener('pageshow', wake)
 }
 
 function stopCurrent() {
@@ -61,9 +110,9 @@ async function playAI(
   localeCode: string,
   signal: AbortSignal,
 ): Promise<boolean> {
-  const ctx = getCtx()
-  // Unlock the context within the user gesture that triggered playback.
-  if (ctx.state === 'suspended') await ctx.resume()
+  // Unlock/resume (or recreate) the context within the user gesture. Handles
+  // the iOS lock/return case where the context is suspended/interrupted/closed.
+  const ctx = await getRunningCtx()
 
   const key = `${localeCode}|${text}`
   let buffer = cache.get(key)
@@ -90,14 +139,19 @@ async function playAI(
   }
 
   stopCurrent()
-  const source = ctx.createBufferSource()
-  source.buffer = buffer
-  source.connect(ctx.destination)
-  source.onended = () => {
-    if (currentSource === source) currentSource = null
+  try {
+    const source = ctx.createBufferSource()
+    source.buffer = buffer
+    source.connect(ctx.destination)
+    source.onended = () => {
+      if (currentSource === source) currentSource = null
+    }
+    source.start()
+    currentSource = source
+  } catch {
+    // Context died mid-play (e.g. iOS interruption) — let the caller fall back.
+    return false
   }
-  source.start()
-  currentSource = source
   return true
 }
 
@@ -232,7 +286,10 @@ export async function prewarmTTS(
   for (const job of uniq) {
     if (opts.signal.aborted) throw new DOMException('aborted', 'AbortError')
     let ok = false
-    for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+    // A few backoff-and-retry attempts: rules cards go through Gemini (which
+    // reads mixed English/Spanish correctly but rate-limits often), so extra
+    // retries let more of them eventually land a render and get cached.
+    for (let attempt = 0; attempt < 4 && !ok; attempt++) {
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -252,7 +309,7 @@ export async function prewarmTTS(
           await sleepAbortable(wait, opts.signal)
         }
       } else if (res.status === 429 || res.status >= 500) {
-        // Rate-limited or transient — wait out the window, then retry once.
+        // Rate-limited or transient — wait out the window, then retry.
         await sleepAbortable(PREWARM_BACKOFF_MS, opts.signal)
       } else {
         break // 4xx (e.g. unconfigured) — don't retry

@@ -9,7 +9,17 @@ export const GET = route(async (request: Request) => {
   const languageId = searchParams.get('languageId')
   if (!languageId) throw Errors.badRequest('languageId is required')
   const deckId = searchParams.get('deckId') ?? undefined
+  const pinnedOnly = searchParams.get('pinnedOnly') === '1'
+  const kindParam = searchParams.get('kind')
+  const kind =
+    kindParam === 'vocab' || kindParam === 'grammar' ? kindParam : undefined
 
-  const cards = await getReviewQueue({ userId, languageId, deckId })
+  const cards = await getReviewQueue({
+    userId,
+    languageId,
+    deckId,
+    pinnedOnly,
+    kind,
+  })
   return NextResponse.json({ cards })
 })

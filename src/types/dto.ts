@@ -29,6 +29,8 @@ export interface DeckDTO {
   kind: DeckKind
   cardCount: number
   dueToday: number
+  /** Cards pinned "as difficult" in this deck. */
+  pinnedCount: number
   buckets: BucketCounts
   pinnedAt: string | null
   createdAt: string

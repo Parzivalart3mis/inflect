@@ -1,6 +1,6 @@
 'use client'
 
-import { Layers, Play, Plus } from 'lucide-react'
+import { Dumbbell, Layers, Play, Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
@@ -43,6 +43,11 @@ export default function CardsPage() {
   const totalDue = decks?.reduce((sum, d) => sum + d.dueToday, 0) ?? 0
   const visibleDecks = decks?.filter((d) => d.kind === kind) ?? []
   const hasAnyDecks = !!decks && decks.length > 0
+  // Pinned-as-difficult vocab cards, across all vocab decks.
+  const pinnedVocab =
+    decks
+      ?.filter((d) => d.kind === 'vocab')
+      .reduce((sum, d) => sum + d.pinnedCount, 0) ?? 0
 
   return (
     <div>
@@ -81,6 +86,17 @@ export default function CardsPage() {
             </button>
           ))}
         </div>
+      )}
+
+      {kind === 'vocab' && pinnedVocab > 0 && (
+        <Button
+          variant="outline"
+          className="mb-4 w-full"
+          onClick={() => router.push('/cards/practice?kind=vocab')}
+        >
+          <Dumbbell className="size-4" />
+          Practice difficult · {pinnedVocab}
+        </Button>
       )}
 
       {isLoading && <ListSkeleton rows={3} />}
