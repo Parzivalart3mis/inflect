@@ -4,6 +4,7 @@ import {
   AudioLines,
   ChevronLeft,
   Download,
+  Headphones,
   Layers,
   Loader2,
   MoreVertical,
@@ -252,6 +253,18 @@ export default function DeckDetailPage() {
             </div>
           )}
 
+          {cards.length > 0 && (
+            <Button
+              variant="outline"
+              className="mb-3 w-full"
+              size="lg"
+              onClick={() => router.push(`/cards/${deckId}/practice`)}
+            >
+              <Headphones className="size-4" />
+              Practice deck
+            </Button>
+          )}
+
           {dueCount > 0 && (
             <Button
               className="bg-cta text-cta-foreground hover:bg-cta/90 mb-4 w-full"
@@ -267,7 +280,7 @@ export default function DeckDetailPage() {
             <EmptyState
               icon={Layers}
               title="No cards yet"
-              description="Add a flashcard with a rule on the front and an optional exception on the back."
+              description="Add a card with the word's meaning on the front and its pronunciation on the back."
               action={
                 <div className="flex gap-2">
                   <Button

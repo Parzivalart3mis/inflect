@@ -197,6 +197,21 @@ export function isTTSAvailable(): boolean {
   return typeof window !== 'undefined'
 }
 
+/**
+ * Unlock/resume the audio context from within a user gesture. Call this on a
+ * tap that begins hands-free playback (auto-play practice), so later
+ * timer-triggered `speak()` calls — which don't run inside a gesture — still
+ * produce sound on iOS.
+ */
+export async function unlockAudio(): Promise<void> {
+  if (typeof window === 'undefined') return
+  try {
+    await getRunningCtx()
+  } catch {
+    // best effort
+  }
+}
+
 const ENGLISH_LOCALE = 'en-US'
 
 /**
