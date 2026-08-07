@@ -10,12 +10,19 @@ import { pushConfigured, sendToUser } from '@/lib/push'
 // to any user who has cards due today and hasn't studied yet today.
 export const dynamic = 'force-dynamic'
 
-function sameUtcDay(a: Date, b: Date): boolean {
-  return (
-    a.getUTCFullYear() === b.getUTCFullYear() &&
-    a.getUTCMonth() === b.getUTCMonth() &&
-    a.getUTCDate() === b.getUTCDate()
-  )
+/** Calendar day (YYYY-MM-DD) in a given IANA timezone — so an evening reminder
+ * that runs after UTC midnight still compares against the user's local day. */
+function localDayKey(d: Date, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(d)
+  } catch {
+    return d.toISOString().slice(0, 10)
+  }
 }
 
 export async function GET(request: Request) {
@@ -48,8 +55,22 @@ export async function GET(request: Request) {
     const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
     })
-    // Skip anyone who already reviewed today.
-    if (user?.lastReviewedAt && sameUtcDay(user.lastReviewedAt, now)) continue
+
+    // Use the device's timezone so "today" is the user's local day.
+    const [sub] = await db
+      .select({ timezone: pushSubscriptions.timezone })
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, userId))
+      .limit(1)
+    const tz = sub?.timezone ?? 'UTC'
+
+    // Skip anyone who already reviewed today (their local today).
+    if (
+      user?.lastReviewedAt &&
+      localDayKey(user.lastReviewedAt, tz) === localDayKey(now, tz)
+    ) {
+      continue
+    }
 
     // Count due cards (due date passed, pinned, or brand-new with no SRS row).
     const [{ due }] = await db
