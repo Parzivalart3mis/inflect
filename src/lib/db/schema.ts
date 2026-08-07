@@ -145,6 +145,27 @@ export const notes = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// push_subscriptions — Web Push endpoints for review reminders (one per device).
+// ---------------------------------------------------------------------------
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    timezone: text('timezone'), // IANA tz captured at subscribe time
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('push_subs_user_idx').on(t.userId)],
+)
+
+// ---------------------------------------------------------------------------
 // coach_sessions — Gemini Live practice sessions.
 // ---------------------------------------------------------------------------
 export type TranscriptEntry = {

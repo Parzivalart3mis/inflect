@@ -22,6 +22,13 @@
       "when": 1783038116442,
       "tag": "0002_complete_salo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786111345193,
+      "tag": "0003_blue_skullbuster",
+      "breakpoints": true
     }
   ]
 }
