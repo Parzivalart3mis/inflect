@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, or, sql } from 'drizzle-orm'
 
 import type { Bucket } from '@/lib/srs/sm2'
 import type { BucketCounts, CardDTO, DeckDTO, DeckKind } from '@/types/dto'
@@ -130,6 +130,44 @@ export async function listDeckCards(
     .orderBy(asc(flashcards.createdAt))
 
   return rows.map((r) => toCardDTO(r.card, r.srs, r.kind))
+}
+
+export interface CardSearchResult {
+  id: string
+  front: string
+  back: string | null
+  deckId: string
+  deckName: string
+}
+
+/** Search a language's cards (front/back, case-insensitive) across all decks. */
+export async function searchCards(
+  userId: string,
+  languageId: string,
+  q: string,
+): Promise<CardSearchResult[]> {
+  // Escape LIKE wildcards in user input, then wrap.
+  const term = `%${q.replace(/[\\%_]/g, '\\$&')}%`
+  const rows = await db
+    .select({
+      id: flashcards.id,
+      front: flashcards.front,
+      back: flashcards.back,
+      deckId: decks.id,
+      deckName: decks.name,
+    })
+    .from(flashcards)
+    .innerJoin(decks, eq(flashcards.deckId, decks.id))
+    .where(
+      and(
+        eq(flashcards.userId, userId),
+        eq(decks.languageId, languageId),
+        or(ilike(flashcards.front, term), ilike(flashcards.back, term)),
+      ),
+    )
+    .orderBy(asc(decks.name), asc(flashcards.createdAt))
+    .limit(50)
+  return rows
 }
 
 /** Recompute and persist a deck's denormalized card_count. */

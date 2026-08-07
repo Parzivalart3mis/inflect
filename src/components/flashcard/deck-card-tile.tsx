@@ -13,6 +13,7 @@ import {
 import { useState } from 'react'
 import { toast } from 'sonner'
 
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { EditCardDialog } from '@/components/flashcard/edit-card-dialog'
 import {
   DropdownMenu,
@@ -37,6 +38,8 @@ export function DeckCardTile({
   const [flipped, setFlipped] = useState(false)
   const [speaking, setSpeaking] = useState<'front' | 'back' | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const showBackSpeaker = isTTSAvailable() && !!card.back
 
@@ -69,12 +72,15 @@ export function DeckCardTile({
   }
 
   async function remove() {
+    if (deleting) return
+    setDeleting(true)
     try {
       await mutateJson(`/api/cards/${card.id}`, 'DELETE')
       toast.success('Card deleted')
       onChanged()
     } catch {
       toast.error('Could not delete card')
+      setDeleting(false)
     }
   }
 
@@ -121,7 +127,10 @@ export function DeckCardTile({
                     </>
                   )}
                 </DropdownMenuItem>
-                <DropdownMenuItem variant="destructive" onClick={remove}>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setConfirmDelete(true)}
+                >
                   <Trash2 className="size-4" />
                   Delete
                 </DropdownMenuItem>
@@ -178,6 +187,16 @@ export function DeckCardTile({
         onOpenChange={setEditOpen}
         card={card}
         onSaved={onChanged}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete this card?"
+        description="This permanently removes the card and its review history."
+        confirmLabel="Delete card"
+        busy={deleting}
+        onConfirm={remove}
       />
     </>
   )

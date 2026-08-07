@@ -57,9 +57,14 @@ export function route<Args extends unknown[]>(
           400,
         )
       }
-      // Avoid leaking internals; Sentry captures the real error via instrumentation.
-      console.error('[api] unhandled error', err)
-      return errorResponse('internal_error', 'Something went wrong', 500)
+      // Correlatable id: logged server-side (+ Sentry) and returned to the
+      // client so a user-reported failure can be traced to one log line.
+      const requestId = crypto.randomUUID()
+      console.error(`[api] unhandled error id=${requestId}`, err)
+      return NextResponse.json(
+        { error: { code: 'internal_error', message: 'Something went wrong', requestId } },
+        { status: 500, headers: { 'x-request-id': requestId } },
+      )
     }
   }
 }

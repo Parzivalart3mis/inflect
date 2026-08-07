@@ -9,11 +9,13 @@ import { ErrorState } from '@/components/common/error-state'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { resolveUtterance, speak, unlockAudio } from '@/lib/tts/speak'
+import { cn } from '@/lib/utils'
 import type { CardDTO, DeckDTO } from '@/types/dto'
 
-// Timing per card: show the prompt, wait, then speak, then a gap before next.
-const WAIT_MS = 3000
-const POST_SPEAK_MS = 2500
+// Recall pause (before speaking) per pace; a short fixed gap follows the audio.
+const PACE_MS = { fast: 1500, normal: 3000, slow: 5000 } as const
+const GAP_AFTER_MS = 700
+type Pace = keyof typeof PACE_MS
 
 /**
  * Hands-free practice for one deck: shows a card, waits 3s, speaks its
@@ -39,6 +41,7 @@ export function DeckAutoplay({
   const [playing, setPlaying] = useState(false)
   const [index, setIndex] = useState(0)
   const [phase, setPhase] = useState<'prompt' | 'reveal'>('prompt')
+  const [pace, setPace] = useState<Pace>('normal')
 
   const total = cards.length
   const current = index < total ? cards[index] : null
@@ -63,7 +66,8 @@ export function DeckAutoplay({
         })
         if (utt) {
           try {
-            await speak(utt.text, utt.locale)
+            // Wait for the audio to actually finish before advancing.
+            await speak(utt.text, utt.locale, { awaitEnd: true })
           } catch {
             // ignore playback errors, keep the drill moving
           }
@@ -72,16 +76,16 @@ export function DeckAutoplay({
         timers.push(
           setTimeout(() => {
             if (alive) setIndex((i) => i + 1)
-          }, POST_SPEAK_MS),
+          }, GAP_AFTER_MS),
         )
-      }, WAIT_MS),
+      }, PACE_MS[pace]),
     )
 
     return () => {
       alive = false
       timers.forEach(clearTimeout)
     }
-  }, [index, playing, current, localeCode])
+  }, [index, playing, current, localeCode, pace])
 
   async function start() {
     await unlockAudio() // within the tap — keeps timer-driven audio working on iOS
@@ -179,7 +183,7 @@ export function DeckAutoplay({
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center gap-4">
             <Button
               variant="outline"
               size="lg"
@@ -197,6 +201,25 @@ export function DeckAutoplay({
                 </>
               )}
             </Button>
+
+            <div className="bg-muted inline-flex rounded-full p-1">
+              {(Object.keys(PACE_MS) as Pace[]).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPace(p)}
+                  aria-pressed={pace === p}
+                  className={cn(
+                    'rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors',
+                    pace === p
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

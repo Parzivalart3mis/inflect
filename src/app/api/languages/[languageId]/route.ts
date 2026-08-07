@@ -2,6 +2,7 @@ import { and, eq, ne } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 
 import { Errors, requireUser, route } from '@/lib/api'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { db } from '@/lib/db'
 import { languages, users } from '@/lib/db/schema'
 import { getOwnedLanguage } from '@/lib/db/workspace'
@@ -10,6 +11,7 @@ type Ctx = { params: Promise<{ languageId: string }> }
 
 export const DELETE = route(async (_request: Request, ctx: Ctx) => {
   const userId = await requireUser()
+  await enforceRateLimit('write', userId)
   const { languageId } = await ctx.params
 
   const language = await getOwnedLanguage(userId, languageId)

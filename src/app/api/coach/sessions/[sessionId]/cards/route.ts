@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 
 import { Errors, parseBody, route } from '@/lib/api'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { db } from '@/lib/db'
 import { coachSessions } from '@/lib/db/schema'
 import { getOwnedDeck, insertCard } from '@/lib/db/cards'
@@ -13,6 +14,7 @@ type Ctx = { params: Promise<{ sessionId: string }> }
 
 export const POST = route(async (request: Request, ctx: Ctx) => {
   const user = await getOrCreateUser()
+  await enforceRateLimit('write', user.id)
   const { sessionId } = await ctx.params
   const body = await parseBody(request, coachSessionCardSchema)
 

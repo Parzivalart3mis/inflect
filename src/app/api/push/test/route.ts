@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { ApiError, requireUser, route } from '@/lib/api'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { pushConfigured, sendToUser } from '@/lib/push'
 
 /**
@@ -11,6 +12,7 @@ import { pushConfigured, sendToUser } from '@/lib/push'
  */
 export const POST = route(async () => {
   const userId = await requireUser()
+  await enforceRateLimit('write', userId)
 
   if (!pushConfigured) {
     throw new ApiError('push_unconfigured', 'Push is not configured', 503)

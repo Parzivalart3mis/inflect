@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 
 import { Errors, parseBody, route } from '@/lib/api'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { db } from '@/lib/db'
 import { languages, users } from '@/lib/db/schema'
 import { getOrCreateUser } from '@/lib/db/user'
@@ -9,6 +10,7 @@ import { activeLanguageSchema } from '@/lib/validations'
 
 export const PATCH = route(async (request: Request) => {
   const user = await getOrCreateUser()
+  await enforceRateLimit('write', user.id)
   const { languageId } = await parseBody(request, activeLanguageSchema)
 
   const owned = await db.query.languages.findFirst({

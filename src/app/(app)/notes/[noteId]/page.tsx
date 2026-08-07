@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { toast } from 'sonner'
 
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { ErrorState } from '@/components/common/error-state'
 import { CreateCardDialog } from '@/components/flashcard/create-card-dialog'
 import { MarkdownToolbar } from '@/components/notes/markdown-toolbar'
@@ -32,7 +33,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAutoSave } from '@/hooks/use-auto-save'
-import { mutateJson } from '@/lib/fetcher'
+import { FetchError, mutateJson } from '@/lib/fetcher'
 import type { CardDTO, NoteDTO } from '@/types/dto'
 
 const SEP = ''
@@ -51,6 +52,8 @@ export default function NoteEditorPage() {
   const [content, setContent] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [cardOpen, setCardOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   // Notes open in preview (formatted); a blank/new note opens in edit so you
   // can start typing without a "Nothing to preview yet" placeholder.
   const [mode, setMode] = useState<'edit' | 'preview'>('preview')
@@ -59,6 +62,9 @@ export default function NoteEditorPage() {
   const initialized = useRef(false)
   const historyRef = useRef<string[]>([])
   const lastSnapshotRef = useRef(0)
+  // The updatedAt the editor last synced with — sent on save to detect a
+  // concurrent edit from another device.
+  const baseUpdatedAtRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (data && !initialized.current) {
@@ -66,6 +72,7 @@ export default function NoteEditorPage() {
       setTitle(data.note.title === 'Untitled' ? '' : data.note.title)
       setContent(data.note.content)
       setMode(data.note.content.trim() ? 'preview' : 'edit')
+      baseUpdatedAtRef.current = data.note.updatedAt
       historyRef.current = []
       setCanUndo(false)
       setLoaded(true)
@@ -98,21 +105,43 @@ export default function NoteEditorPage() {
     enabled: loaded,
     delay: 1000,
     onSave: async () => {
-      await mutateJson(`/api/notes/${noteId}`, 'PATCH', {
-        title: title.trim() || undefined,
-        content,
-      })
-      void mutate()
+      try {
+        const updated = await mutateJson<{ updatedAt: string }>(
+          `/api/notes/${noteId}`,
+          'PATCH',
+          {
+            title: title.trim() || undefined,
+            content,
+            baseUpdatedAt: baseUpdatedAtRef.current ?? undefined,
+          },
+        )
+        baseUpdatedAtRef.current = updated.updatedAt
+        void mutate()
+      } catch (err) {
+        // Another device saved a newer version — reload it rather than clobber.
+        if (err instanceof FetchError && err.status === 409) {
+          toast.message('Note updated elsewhere', {
+            description: 'Loaded the latest version.',
+          })
+          initialized.current = false
+          await mutate()
+          return
+        }
+        throw err
+      }
     },
   })
 
   async function deleteNote() {
+    if (deleting) return
+    setDeleting(true)
     try {
       await mutateJson(`/api/notes/${noteId}`, 'DELETE')
       toast.success('Note deleted')
       router.push('/notes')
     } catch {
       toast.error('Could not delete note')
+      setDeleting(false)
     }
   }
 
@@ -186,7 +215,7 @@ export default function NoteEditorPage() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
-                onClick={deleteNote}
+                onClick={() => setConfirmDelete(true)}
               >
                 <Trash2 className="size-4" />
                 Delete note
@@ -301,6 +330,16 @@ export default function NoteEditorPage() {
           )}
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete this note?"
+        description="This permanently removes the note. This cannot be undone."
+        confirmLabel="Delete note"
+        busy={deleting}
+        onConfirm={deleteNote}
+      />
     </div>
   )
 }

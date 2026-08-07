@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { Errors, parseBody, requireUser, route } from '@/lib/api'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { db } from '@/lib/db'
 import { coachSessions } from '@/lib/db/schema'
 import { listSessions } from '@/lib/db/coach'
@@ -20,6 +21,7 @@ export const GET = route(async (request: Request) => {
 
 export const POST = route(async (request: Request) => {
   const user = await getOrCreateUser()
+  await enforceRateLimit('write', user.id)
   const body = await parseBody(request, coachSessionCreateSchema)
 
   const language = await getOwnedLanguage(user.id, body.languageId)

@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { toast } from 'sonner'
 
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { EmptyState } from '@/components/common/empty-state'
 import { ErrorState } from '@/components/common/error-state'
 import { Fab } from '@/components/common/fab'
@@ -68,6 +69,8 @@ export default function DeckDetailPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [query, setQuery] = useState('')
   const [prewarm, setPrewarm] = useState<{ done: number; total: number } | null>(
     null,
@@ -89,13 +92,15 @@ export default function DeckDetailPage() {
     : cards
 
   async function deleteDeck() {
-    if (!data) return
+    if (!data || deleting) return
+    setDeleting(true)
     try {
       await mutateJson(`/api/decks/${deckId}`, 'DELETE')
       toast.success('Deck deleted')
       router.push('/cards')
     } catch {
       toast.error('Could not delete deck')
+      setDeleting(false)
     }
   }
 
@@ -189,7 +194,10 @@ export default function DeckDetailPage() {
                 Export CSV
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={deleteDeck}>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => setConfirmDelete(true)}
+              >
                 <Trash2 className="size-4" />
                 Delete deck
               </DropdownMenuItem>
@@ -360,6 +368,16 @@ export default function DeckDetailPage() {
           onSaved={() => mutate()}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`Delete ${data?.deck.name ?? 'deck'}?`}
+        description="This permanently removes the deck and all its cards and review history. This cannot be undone."
+        confirmLabel="Delete deck"
+        busy={deleting}
+        onConfirm={deleteDeck}
+      />
     </div>
   )
 }

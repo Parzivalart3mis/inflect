@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { parseBody, requireUser, route } from '@/lib/api'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { db } from '@/lib/db'
 import { pushSubscriptions } from '@/lib/db/schema'
 
@@ -19,6 +20,7 @@ const bodySchema = z.object({
 /** Persist a device's push subscription (upsert by endpoint). */
 export const POST = route(async (request: Request) => {
   const userId = await requireUser()
+  await enforceRateLimit('write', userId)
   const { subscription, timezone } = await parseBody(request, bodySchema)
 
   await db

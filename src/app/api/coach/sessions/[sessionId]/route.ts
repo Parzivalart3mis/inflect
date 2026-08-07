@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { Errors, parseBody, requireUser, route } from '@/lib/api'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { getOwnedSession, saveTranscript, toSessionDTO } from '@/lib/db/coach'
 import { getOrCreateUser } from '@/lib/db/user'
 import { coachSessionPatchSchema } from '@/lib/validations'
@@ -17,6 +18,7 @@ export const GET = route(async (_request: Request, ctx: Ctx) => {
 
 export const PATCH = route(async (request: Request, ctx: Ctx) => {
   const user = await getOrCreateUser()
+  await enforceRateLimit('write', user.id)
   const { sessionId } = await ctx.params
   const body = await parseBody(request, coachSessionPatchSchema)
 

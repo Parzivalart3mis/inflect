@@ -89,6 +89,8 @@ export const noteUpdateSchema = z
     title: z.string().max(200).optional(),
     content: z.string().max(100_000).optional(),
     pinned: z.boolean().optional(),
+    // ISO updatedAt the client last loaded — used to detect a concurrent edit.
+    baseUpdatedAt: z.string().optional(),
   })
   .refine(
     (v) =>

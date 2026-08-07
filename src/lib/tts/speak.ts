@@ -1,5 +1,7 @@
 'use client'
 
+import { toast } from 'sonner'
+
 /**
  * Pronunciation playback. Primary path is AI TTS (Gemini, via /api/tts) for a
  * natural voice; falls back to the on-device Web Speech voice if the AI path is
@@ -104,11 +106,13 @@ function decodePcm(
   return buffer
 }
 
-/** Returns false when the AI path is unavailable so the caller can fall back. */
+/** Returns false when the AI path is unavailable so the caller can fall back.
+ * When `awaitEnd`, resolves only after playback finishes (for hands-free auto-play). */
 async function playAI(
   text: string,
   localeCode: string,
   signal: AbortSignal,
+  awaitEnd = false,
 ): Promise<boolean> {
   // Unlock/resume (or recreate) the context within the user gesture. Handles
   // the iOS lock/return case where the context is suspended/interrupted/closed.
@@ -143,11 +147,21 @@ async function playAI(
     const source = ctx.createBufferSource()
     source.buffer = buffer
     source.connect(ctx.destination)
-    source.onended = () => {
-      if (currentSource === source) currentSource = null
-    }
-    source.start()
     currentSource = source
+    if (awaitEnd) {
+      await new Promise<void>((resolve) => {
+        source.onended = () => {
+          if (currentSource === source) currentSource = null
+          resolve()
+        }
+        source.start()
+      })
+    } else {
+      source.onended = () => {
+        if (currentSource === source) currentSource = null
+      }
+      source.start()
+    }
   } catch {
     // Context died mid-play (e.g. iOS interruption) — let the caller fall back.
     return false
@@ -155,24 +169,41 @@ async function playAI(
   return true
 }
 
-function playSystem(text: string, localeCode: string) {
-  if (!('speechSynthesis' in window)) return
+function playSystem(
+  text: string,
+  localeCode: string,
+  awaitEnd = false,
+): Promise<void> {
+  if (!('speechSynthesis' in window)) return Promise.resolve()
   window.speechSynthesis.cancel()
   const utterance = new SpeechSynthesisUtterance(text)
   utterance.lang = localeCode
   const voice = pickVoice(localeCode)
   if (voice) utterance.voice = voice
-  window.speechSynthesis.speak(utterance)
+  if (!awaitEnd) {
+    window.speechSynthesis.speak(utterance)
+    return Promise.resolve()
+  }
+  return new Promise((resolve) => {
+    utterance.onend = () => resolve()
+    utterance.onerror = () => resolve()
+    window.speechSynthesis.speak(utterance)
+  })
 }
 
 /**
- * Speak `text` in `localeCode`. Resolves once playback has started (or the
- * fallback has been dispatched) — callers can await it to show a loading state.
+ * Speak `text` in `localeCode`. Resolves once playback has started — or, with
+ * `{ awaitEnd: true }`, once playback finishes (for hands-free auto-play).
  */
-export async function speak(text: string, localeCode: string): Promise<void> {
+export async function speak(
+  text: string,
+  localeCode: string,
+  opts?: { awaitEnd?: boolean },
+): Promise<void> {
   if (typeof window === 'undefined') return
   const trimmed = text.trim()
   if (!trimmed) return
+  const awaitEnd = opts?.awaitEnd ?? false
 
   // Cancel any in-flight system speech + supersede a pending AI request.
   if ('speechSynthesis' in window) window.speechSynthesis.cancel()
@@ -181,7 +212,7 @@ export async function speak(text: string, localeCode: string): Promise<void> {
   inflight = controller
 
   try {
-    const ok = await playAI(trimmed, localeCode, controller.signal)
+    const ok = await playAI(trimmed, localeCode, controller.signal, awaitEnd)
     if (ok) return
   } catch (err) {
     // A newer tap aborted this one — let it handle playback, don't fall back.
@@ -190,7 +221,20 @@ export async function speak(text: string, localeCode: string): Promise<void> {
   } finally {
     if (inflight === controller) inflight = null
   }
-  playSystem(trimmed, localeCode)
+  notifyFallbackOnce()
+  await playSystem(trimmed, localeCode, awaitEnd)
+}
+
+// Let the user know, once per session, that the natural (neural) voice couldn't
+// be reached and we're using the device's built-in voice — which is flatter and
+// may mispronounce. Otherwise a sudden robotic voice looks like a bug.
+let warnedFallback = false
+function notifyFallbackOnce() {
+  if (warnedFallback) return
+  warnedFallback = true
+  toast.message('Using your device voice', {
+    description: 'The natural voice is unavailable right now.',
+  })
 }
 
 export function isTTSAvailable(): boolean {

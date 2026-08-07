@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 
 import { Errors, parseBody, requireUser, route } from '@/lib/api'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { db } from '@/lib/db'
 import { flashcards, srsProgress } from '@/lib/db/schema'
 import { getOwnedCard, recountDeck, toCardDTO } from '@/lib/db/cards'
@@ -12,6 +13,7 @@ type Ctx = { params: Promise<{ cardId: string }> }
 
 export const PATCH = route(async (request: Request, ctx: Ctx) => {
   const user = await getOrCreateUser()
+  await enforceRateLimit('write', user.id)
   const { cardId } = await ctx.params
   const body = await parseBody(request, cardUpdateSchema)
 
@@ -37,6 +39,7 @@ export const PATCH = route(async (request: Request, ctx: Ctx) => {
 
 export const DELETE = route(async (_request: Request, ctx: Ctx) => {
   const userId = await requireUser()
+  await enforceRateLimit('write', userId)
   const { cardId } = await ctx.params
 
   const existing = await getOwnedCard(userId, cardId)

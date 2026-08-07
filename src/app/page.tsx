@@ -90,7 +90,7 @@ export default async function Home() {
             </div>
 
             <p className="text-muted-foreground/80 mt-4 text-xs lg:mt-5">
-              Free to use · Works offline as an app on your phone
+              Free to use · Installs as an app on your phone
             </p>
           </div>
 

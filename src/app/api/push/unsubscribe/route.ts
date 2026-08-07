@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { parseBody, requireUser, route } from '@/lib/api'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { db } from '@/lib/db'
 import { pushSubscriptions } from '@/lib/db/schema'
 
@@ -11,6 +12,7 @@ const bodySchema = z.object({ endpoint: z.string().url() })
 /** Remove a device's saved subscription (turning its reminders off). */
 export const POST = route(async (request: Request) => {
   const userId = await requireUser()
+  await enforceRateLimit('write', userId)
   const { endpoint } = await parseBody(request, bodySchema)
 
   await db

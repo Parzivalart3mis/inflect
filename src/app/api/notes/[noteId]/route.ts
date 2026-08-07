@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 
-import { Errors, parseBody, requireUser, route } from '@/lib/api'
+import { ApiError, Errors, parseBody, requireUser, route } from '@/lib/api'
 import { db } from '@/lib/db'
 import { notes } from '@/lib/db/schema'
 import { getNoteWithCards, getOwnedNote } from '@/lib/db/notes'
@@ -28,6 +28,20 @@ export const PATCH = route(async (request: Request, ctx: Ctx) => {
   if (!existing) throw Errors.notFound('Note')
 
   const isContentEdit = body.title !== undefined || body.content !== undefined
+
+  // Concurrent-edit guard: if the client's loaded version is stale (the note was
+  // edited elsewhere), reject so it can reload instead of silently clobbering.
+  if (
+    isContentEdit &&
+    body.baseUpdatedAt &&
+    existing.updatedAt.toISOString() !== body.baseUpdatedAt
+  ) {
+    throw new ApiError(
+      'conflict',
+      'This note was changed on another device',
+      409,
+    )
+  }
 
   // A pin-only toggle is lightweight: no rate limit, and it must not bump
   // updatedAt (which would reorder the note in the list).

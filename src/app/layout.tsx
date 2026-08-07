@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
 import { Geist, Geist_Mono, Fraunces } from 'next/font/google'
 
+import { Analytics } from '@vercel/analytics/next'
+
 import { SplashScreen } from '@/components/brand/splash-screen'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
@@ -105,6 +107,7 @@ export default function RootLayout({
             {children}
             <Toaster position="top-center" richColors />
             <SplashScreen />
+            <Analytics />
           </ThemeProvider>
         </body>
       </html>

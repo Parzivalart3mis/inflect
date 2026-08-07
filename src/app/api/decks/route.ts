@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { Errors, parseBody, requireUser, route } from '@/lib/api'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { db } from '@/lib/db'
 import { decks } from '@/lib/db/schema'
 import { listDecks } from '@/lib/db/cards'
@@ -20,6 +21,7 @@ export const GET = route(async (request: Request) => {
 
 export const POST = route(async (request: Request) => {
   const user = await getOrCreateUser()
+  await enforceRateLimit('write', user.id)
   const body = await parseBody(request, deckCreateSchema)
 
   const language = await getOwnedLanguage(user.id, body.languageId)
