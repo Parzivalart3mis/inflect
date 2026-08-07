@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 
 import { AddLanguageDialog } from '@/components/language/add-language-dialog'
 import { PageHeader } from '@/components/common/page-header'
+import { NotificationTest } from '@/components/settings/notification-test'
 import { useLanguage } from '@/components/providers/language-provider'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
@@ -111,6 +112,12 @@ export default function SettingsPage() {
           <span className="text-sm">Theme</span>
           <ThemeToggle />
         </div>
+      </section>
+
+      {/* Notifications (proof of concept) */}
+      <section className="mb-8">
+        <h2 className="font-heading mb-2 font-semibold">Notifications</h2>
+        <NotificationTest />
       </section>
 
       {/* Account */}
