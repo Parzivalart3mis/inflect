@@ -68,7 +68,16 @@ export function ReviewSession({
     if (!current || submitting) return
     setSubmitting(true)
     try {
-      await mutateJson(`/api/cards/${current.id}/review`, 'POST', { rating })
+      const res = await mutateJson<{ leeched?: boolean }>(
+        `/api/cards/${current.id}/review`,
+        'POST',
+        { rating },
+      )
+      if (res.leeched) {
+        toast.message('Pinned as difficult', {
+          description: 'You keep missing this one — find it in Practice difficult.',
+        })
+      }
       setReviewed((n) => n + 1)
       setFlipped(false)
       setIndex((i) => i + 1)
@@ -165,7 +174,11 @@ export function ReviewSession({
 
             {flipped ? (
               <div className="space-y-2">
-                <SRSButtons onRate={rate} disabled={submitting} />
+                <SRSButtons
+                  onRate={rate}
+                  disabled={submitting}
+                  srs={current.srs}
+                />
                 <p className="text-muted-foreground text-center text-xs">
                   Rate how well you knew it — the next card loads automatically.
                 </p>

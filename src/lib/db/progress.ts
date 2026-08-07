@@ -1,11 +1,20 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, gte } from 'drizzle-orm'
 
 import type { Bucket } from '@/lib/srs/sm2'
 import type { ProgressDTO } from '@/types/dto'
 
 import { emptyBuckets, endOfToday } from './cards'
 import { db } from './index'
-import { coachSessions, decks, flashcards, srsProgress, users } from './schema'
+import {
+  coachSessions,
+  decks,
+  flashcards,
+  reviewEvents,
+  srsProgress,
+  users,
+} from './schema'
+
+const HEATMAP_DAYS = 119 // ~17 weeks including today
 
 function dayKey(d: Date): string {
   // Local server day, YYYY-MM-DD.
@@ -47,8 +56,11 @@ export async function getProgress(
 ): Promise<ProgressDTO> {
   const now = new Date()
   const cutoff = endOfToday(now)
+  const heatmapSince = new Date(now)
+  heatmapSince.setDate(now.getDate() - HEATMAP_DAYS)
+  heatmapSince.setHours(0, 0, 0, 0)
 
-  const [user, cards, sessions] = await Promise.all([
+  const [user, cards, sessions, events] = await Promise.all([
     db.query.users.findFirst({ where: eq(users.id, userId) }),
     db
       .select({
@@ -76,6 +88,18 @@ export async function getProgress(
         and(
           eq(coachSessions.userId, userId),
           eq(coachSessions.languageId, languageId),
+        ),
+      ),
+    db
+      .select({ reviewedAt: reviewEvents.reviewedAt })
+      .from(reviewEvents)
+      .innerJoin(flashcards, eq(reviewEvents.cardId, flashcards.id))
+      .innerJoin(decks, eq(flashcards.deckId, decks.id))
+      .where(
+        and(
+          eq(reviewEvents.userId, userId),
+          eq(decks.languageId, languageId),
+          gte(reviewEvents.reviewedAt, heatmapSince),
         ),
       ),
   ])
@@ -120,6 +144,20 @@ export async function getProgress(
     .sort((a, b) => a.retentionRate - b.retentionRate)
     .slice(0, 3)
 
+  // Real per-review activity for the calendar heatmap (last ~17 weeks).
+  const eventCounts = new Map<string, number>()
+  for (const e of events) {
+    const k = dayKey(e.reviewedAt)
+    eventCounts.set(k, (eventCounts.get(k) ?? 0) + 1)
+  }
+  const heatmap: { date: string; count: number }[] = []
+  for (let i = HEATMAP_DAYS; i >= 0; i--) {
+    const day = new Date(now)
+    day.setDate(now.getDate() - i)
+    const k = dayKey(day)
+    heatmap.push({ date: k, count: eventCounts.get(k) ?? 0 })
+  }
+
   const totalSeconds = sessions.reduce((sum, s) => sum + (s.duration ?? 0), 0)
   const lastSessionAt = sessions.reduce<Date | null>((latest, s) => {
     return !latest || s.startedAt > latest ? s.startedAt : latest
@@ -138,5 +176,6 @@ export async function getProgress(
     },
     dueToday,
     reviewHistory: buildHistory(reviewDays, now),
+    heatmap,
   }
 }

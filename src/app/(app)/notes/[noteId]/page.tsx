@@ -52,6 +52,7 @@ export default function NoteEditorPage() {
   const [content, setContent] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [cardOpen, setCardOpen] = useState(false)
+  const [cardPresetFront, setCardPresetFront] = useState<string | undefined>()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   // Notes open in preview (formatted); a blank/new note opens in edit so you
@@ -98,6 +99,18 @@ export default function NoteEditorPage() {
     setContent(prev)
     lastSnapshotRef.current = 0 // let the next edit start a fresh undo step
     setCanUndo(historyRef.current.length > 0)
+  }
+
+  function cardFromSelection() {
+    const ta = textareaRef.current
+    if (!ta) return
+    const selected = content.slice(ta.selectionStart, ta.selectionEnd).trim()
+    if (!selected) {
+      toast.message('Select some text in the note first')
+      return
+    }
+    setCardPresetFront(selected)
+    setCardOpen(true)
   }
 
   const { status } = useAutoSave({
@@ -258,6 +271,18 @@ export default function NoteEditorPage() {
                 value={content}
                 onChange={updateContent}
               />
+              <div className="mt-2 flex justify-end">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={cardFromSelection}
+                  disabled={!activeLanguageId}
+                >
+                  <Plus className="size-4" />
+                  Card from selection
+                </Button>
+              </div>
               <textarea
                 ref={textareaRef}
                 value={content}
@@ -284,7 +309,10 @@ export default function NoteEditorPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setCardOpen(true)}
+                onClick={() => {
+                  setCardPresetFront(undefined)
+                  setCardOpen(true)
+                }}
                 disabled={!activeLanguageId}
               >
                 <Plus className="size-4" />
@@ -325,6 +353,7 @@ export default function NoteEditorPage() {
               onOpenChange={setCardOpen}
               languageId={activeLanguageId}
               sourceNoteId={noteId}
+              presetFront={cardPresetFront}
               onCreated={() => mutate()}
             />
           )}

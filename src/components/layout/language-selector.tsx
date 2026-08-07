@@ -57,6 +57,11 @@ export function LanguageSelector() {
                 {lang.flagEmoji}
               </span>
               <span className="flex-1 truncate">{lang.name}</span>
+              {lang.dueToday > 0 && (
+                <span className="bg-cta text-cta-foreground inline-flex shrink-0 items-center rounded-full px-1.5 text-[10px] font-semibold">
+                  {lang.dueToday}
+                </span>
+              )}
               <Check
                 className={cn(
                   'size-4',

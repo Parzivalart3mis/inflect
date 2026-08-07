@@ -1,7 +1,7 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import { toast } from 'sonner'
 
@@ -59,6 +59,15 @@ export function CreateCardDialog({
   const [front, setFront] = useState(presetFront ?? '')
   const [back, setBack] = useState(presetBack ?? '')
   const [saving, setSaving] = useState(false)
+
+  // Sync the fields to the preset each time the dialog opens (e.g. a new text
+  // selection). Otherwise the initial useState value would go stale.
+  useEffect(() => {
+    if (open) {
+      setFront(presetFront ?? '')
+      setBack(presetBack ?? '')
+    }
+  }, [open, presetFront, presetBack])
 
   // Default the deck choice once decks load.
   const effectiveChoice =

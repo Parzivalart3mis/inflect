@@ -1,0 +1,1 @@
+ALTER TABLE "srs_progress" ADD COLUMN "lapses" integer DEFAULT 0 NOT NULL;

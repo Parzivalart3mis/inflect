@@ -77,6 +77,23 @@ export function MarkdownView({
             />
           ),
           hr: (props) => <hr className="border-border my-4" {...props} />,
+          table: (props) => (
+            <div className="my-3 overflow-x-auto">
+              <table
+                className="border-border w-full border-collapse text-sm"
+                {...props}
+              />
+            </div>
+          ),
+          th: (props) => (
+            <th
+              className="border-border bg-muted border px-3 py-1.5 text-left font-semibold"
+              {...props}
+            />
+          ),
+          td: (props) => (
+            <td className="border-border border px-3 py-1.5" {...props} />
+          ),
         }}
       >
         {content}

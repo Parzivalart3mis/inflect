@@ -19,6 +19,7 @@ export interface LanguageDTO {
   flagEmoji: string
   deckCount: number
   cardCount: number
+  dueToday: number
 }
 
 export interface DeckDTO {
@@ -119,4 +120,6 @@ export interface ProgressDTO {
   }
   dueToday: number
   reviewHistory: { date: string; reviewed: number }[]
+  /** Real per-review counts per day (last ~17 weeks) for the calendar heatmap. */
+  heatmap: { date: string; count: number }[]
 }

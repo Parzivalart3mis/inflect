@@ -3,7 +3,12 @@ import { NextResponse } from 'next/server'
 
 import { Errors, parseBody, route } from '@/lib/api'
 import { db } from '@/lib/db'
-import { srsProgress, users } from '@/lib/db/schema'
+import {
+  flashcards,
+  reviewEvents,
+  srsProgress,
+  users,
+} from '@/lib/db/schema'
 import { getOwnedCard } from '@/lib/db/cards'
 import { getOrCreateUser } from '@/lib/db/user'
 import { enforceRateLimit } from '@/lib/rate-limit'
@@ -39,6 +44,7 @@ export const POST = route(async (request: Request, ctx: Ctx) => {
     : initialState(now)
 
   const next = computeNextState(current, rating, now)
+  const lapses = (existing?.lapses ?? 0) + (rating === 'again' ? 1 : 0)
 
   if (existing) {
     await db
@@ -49,6 +55,7 @@ export const POST = route(async (request: Request, ctx: Ctx) => {
         easeFactor: next.easeFactor,
         dueDate: next.dueDate,
         bucket: next.bucket,
+        lapses,
         lastRating: rating,
         lastReviewedAt: now,
       })
@@ -62,10 +69,31 @@ export const POST = route(async (request: Request, ctx: Ctx) => {
       easeFactor: next.easeFactor,
       dueDate: next.dueDate,
       bucket: next.bucket,
+      lapses,
       lastRating: rating,
       lastReviewedAt: now,
     })
   }
+
+  // Leech: a card failed many times. Auto-pin it as "difficult" so it surfaces
+  // in Practice difficult (only the first time it crosses the threshold).
+  const LEECH_LAPSES = 4
+  const leeched =
+    rating === 'again' && lapses >= LEECH_LAPSES && !card.isPinned
+  if (leeched) {
+    await db
+      .update(flashcards)
+      .set({ isPinned: true })
+      .where(eq(flashcards.id, cardId))
+  }
+
+  // Log the review event (accurate activity/retention history).
+  await db.insert(reviewEvents).values({
+    userId: user.id,
+    cardId,
+    rating,
+    reviewedAt: now,
+  })
 
   // Maintain the daily streak.
   const streak = nextStreak(user.lastReviewedAt, user.streakCount, now)
@@ -78,5 +106,6 @@ export const POST = route(async (request: Request, ctx: Ctx) => {
     nextDueDate: next.dueDate.toISOString(),
     bucket: next.bucket,
     intervalDays: next.interval,
+    leeched,
   })
 })

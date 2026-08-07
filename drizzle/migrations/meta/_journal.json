@@ -29,6 +29,20 @@
       "when": 1786111345193,
       "tag": "0003_blue_skullbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786145193092,
+      "tag": "0004_workable_northstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786145543166,
+      "tag": "0005_short_skreet",
+      "breakpoints": true
     }
   ]
 }

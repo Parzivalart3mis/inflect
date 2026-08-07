@@ -166,6 +166,27 @@ export const pushSubscriptions = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// review_events — one row per card review, for accurate activity/retention.
+// ---------------------------------------------------------------------------
+export const reviewEvents = pgTable(
+  'review_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    cardId: uuid('card_id')
+      .notNull()
+      .references(() => flashcards.id, { onDelete: 'cascade' }),
+    rating: ratingEnum('rating').notNull(),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('review_events_user_time_idx').on(t.userId, t.reviewedAt)],
+)
+
+// ---------------------------------------------------------------------------
 // coach_sessions — Gemini Live practice sessions.
 // ---------------------------------------------------------------------------
 export type TranscriptEntry = {
@@ -261,6 +282,8 @@ export const srsProgress = pgTable(
       .notNull()
       .defaultNow(),
     bucket: bucketEnum('bucket').notNull().default('new'),
+    // Times the card has been rated "again" — used to flag leeches.
+    lapses: integer('lapses').notNull().default(0),
     lastRating: ratingEnum('last_rating'),
     lastReviewedAt: timestamp('last_reviewed_at', { withTimezone: true }),
   },

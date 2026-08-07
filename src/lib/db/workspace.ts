@@ -1,13 +1,15 @@
-import { and, count, eq } from 'drizzle-orm'
+import { and, count, eq, isNull, lte, or } from 'drizzle-orm'
 
 import type { LanguageDTO } from '@/types/dto'
 
+import { endOfToday } from './cards'
 import { db } from './index'
-import { decks, flashcards, languages } from './schema'
+import { decks, flashcards, languages, srsProgress } from './schema'
 
-/** All languages for a user with deck + card counts (powers GET /api/languages). */
+/** All languages for a user with deck + card + due-today counts. */
 export async function listLanguages(userId: string): Promise<LanguageDTO[]> {
-  const [langs, deckCounts, cardCounts] = await Promise.all([
+  const cutoff = endOfToday()
+  const [langs, deckCounts, cardCounts, dueCounts] = await Promise.all([
     db
       .select()
       .from(languages)
@@ -24,10 +26,27 @@ export async function listLanguages(userId: string): Promise<LanguageDTO[]> {
       .innerJoin(decks, eq(flashcards.deckId, decks.id))
       .where(eq(flashcards.userId, userId))
       .groupBy(decks.languageId),
+    db
+      .select({ languageId: decks.languageId, value: count() })
+      .from(flashcards)
+      .innerJoin(decks, eq(flashcards.deckId, decks.id))
+      .leftJoin(srsProgress, eq(srsProgress.cardId, flashcards.id))
+      .where(
+        and(
+          eq(flashcards.userId, userId),
+          or(
+            lte(srsProgress.dueDate, cutoff),
+            eq(flashcards.isPinned, true),
+            isNull(srsProgress.id),
+          ),
+        ),
+      )
+      .groupBy(decks.languageId),
   ])
 
   const deckMap = new Map(deckCounts.map((d) => [d.languageId, d.value]))
   const cardMap = new Map(cardCounts.map((c) => [c.languageId, c.value]))
+  const dueMap = new Map(dueCounts.map((d) => [d.languageId, d.value]))
 
   return langs.map((l) => ({
     id: l.id,
@@ -36,6 +55,7 @@ export async function listLanguages(userId: string): Promise<LanguageDTO[]> {
     flagEmoji: l.flagEmoji,
     deckCount: deckMap.get(l.id) ?? 0,
     cardCount: cardMap.get(l.id) ?? 0,
+    dueToday: dueMap.get(l.id) ?? 0,
   }))
 }
 
