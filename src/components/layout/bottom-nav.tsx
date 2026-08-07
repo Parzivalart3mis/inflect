@@ -1,5 +1,6 @@
 'use client'
 
+import { motion } from 'framer-motion'
 import { BarChart3, Layers, Mic, NotebookPen } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -23,20 +24,27 @@ export function BottomNav() {
     >
       <ul className="mx-auto flex max-w-2xl items-stretch justify-around px-2 pt-1.5">
         {ITEMS.map(({ href, label, icon: Icon }) => {
-          const active =
-            pathname === href || pathname.startsWith(href + '/')
+          const active = pathname === href || pathname.startsWith(href + '/')
           return (
             <li key={href} className="flex-1">
               <Link
                 href={href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[11px] font-medium transition-colors',
+                  'relative flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[11px] font-medium transition-[color,transform] active:scale-95',
                   active
                     ? 'text-primary'
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
+                {active && (
+                  <motion.span
+                    layoutId="nav-active"
+                    aria-hidden
+                    className="bg-primary/10 absolute inset-x-2 inset-y-0.5 -z-10 rounded-xl"
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                  />
+                )}
                 <Icon
                   className="size-5"
                   strokeWidth={active ? 2.4 : 1.9}

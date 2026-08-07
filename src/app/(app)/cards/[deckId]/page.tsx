@@ -142,7 +142,7 @@ export default function DeckDetailPage() {
   }
 
   return (
-    <div>
+    <div className="pb-24">
       <div className="sticky top-14 -mx-4 flex items-center justify-between gap-2 bg-background/90 px-4 py-2 backdrop-blur">
         <Button
           variant="ghost"

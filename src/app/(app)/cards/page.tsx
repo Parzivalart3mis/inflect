@@ -28,7 +28,7 @@ export default function CardsPage() {
   const pinnedCount = decks?.reduce((sum, d) => sum + d.pinnedCount, 0) ?? 0
 
   return (
-    <div>
+    <div className="pb-24">
       <PageHeader
         title="Cards"
         subtitle={activeLanguage ? `Decks in ${activeLanguage.name}` : undefined}
@@ -56,7 +56,7 @@ export default function CardsPage() {
         </Button>
       )}
 
-      {isLoading && <ListSkeleton rows={3} />}
+      {isLoading && <ListSkeleton variant="grid" rows={6} />}
 
       {error && (
         <ErrorState message="Couldn't load your decks." onRetry={() => mutate()} />

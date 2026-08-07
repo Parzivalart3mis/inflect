@@ -68,7 +68,7 @@ export default function NotesPage() {
   const searching = debouncedQuery.length > 0
 
   return (
-    <div>
+    <div className="pb-24">
       <PageHeader
         title="Notes"
         subtitle={
@@ -91,7 +91,7 @@ export default function NotesPage() {
         />
       </div>
 
-      {isLoading && <ListSkeleton rows={4} />}
+      {isLoading && <ListSkeleton variant="grid" rows={6} />}
 
       {error && (
         <ErrorState

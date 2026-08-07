@@ -37,7 +37,7 @@ export function NoteListItem({
   return (
     <div
       className={cn(
-        'relative flex h-full min-h-32 flex-col rounded-xl border p-3 transition-colors',
+        'relative flex h-full min-h-32 flex-col rounded-xl border p-3 transition-[color,border-color,transform] active:scale-[0.98]',
         pinned
           ? 'border-primary/40 bg-primary/5'
           : 'border-border bg-card hover:border-primary/40',

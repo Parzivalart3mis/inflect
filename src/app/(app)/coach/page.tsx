@@ -227,7 +227,7 @@ export default function CoachPage() {
             <li key={s.id}>
               <Link
                 href={`/coach/${s.id}`}
-                className="border-border bg-card hover:border-primary/40 block rounded-xl border p-4 transition-colors"
+                className="border-border bg-card hover:border-primary/40 block rounded-xl border p-4 transition-[border-color,transform] active:scale-[0.98]"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-2">
