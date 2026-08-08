@@ -13,6 +13,7 @@ import {
   Play,
   Plus,
   Search,
+  Share2,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -31,6 +32,7 @@ import { BulkImportDialog } from '@/components/flashcard/bulk-import-dialog'
 import { DeckCardTile } from '@/components/flashcard/deck-card-tile'
 import { CreateCardDialog } from '@/components/flashcard/create-card-dialog'
 import { EditDeckDialog } from '@/components/flashcard/edit-deck-dialog'
+import { ShareDeckDialog } from '@/components/flashcard/share-deck-dialog'
 import { useLanguage } from '@/components/providers/language-provider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -69,6 +71,7 @@ export default function DeckDetailPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [query, setQuery] = useState('')
@@ -179,6 +182,10 @@ export default function DeckDetailPage() {
               <DropdownMenuItem onClick={() => setBulkOpen(true)}>
                 <Upload className="size-4" />
                 Bulk import
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                <Share2 className="size-4" />
+                {data.deck.shareToken ? 'Sharing link' : 'Share deck'}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={startPrewarm}
@@ -366,6 +373,17 @@ export default function DeckDetailPage() {
           onOpenChange={setEditOpen}
           deck={data.deck}
           onSaved={() => mutate()}
+        />
+      )}
+
+      {data && (
+        <ShareDeckDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          deckId={data.deck.id}
+          deckName={data.deck.name}
+          shareToken={data.deck.shareToken}
+          onChanged={() => mutate()}
         />
       )}
 

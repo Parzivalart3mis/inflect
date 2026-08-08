@@ -100,6 +100,7 @@ export async function listDecks(
         buckets: emptyBuckets(),
         pinnedAt: row.deck.pinnedAt?.toISOString() ?? null,
         createdAt: row.deck.createdAt.toISOString(),
+        shareToken: row.deck.shareToken ?? null,
       }
       map.set(row.deck.id, dto)
     }

@@ -5,8 +5,11 @@ const isPublicRoute = createRouteMatcher([
   '/', // marketing landing page
   '/sign-in(.*)',
   '/sign-up(.*)',
+  '/shared(.*)', // public shared-deck view
   '/api/webhooks(.*)',
   '/api/cron(.*)', // authenticated by CRON_SECRET, not Clerk
+  // Shared-deck read is public; the import sub-route self-guards via getOrCreateUser.
+  '/api/shared(.*)',
 ])
 
 export default clerkMiddleware(async (auth, req) => {

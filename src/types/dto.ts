@@ -35,6 +35,17 @@ export interface DeckDTO {
   buckets: BucketCounts
   pinnedAt: string | null
   createdAt: string
+  /** URL-safe token when the deck is shared publicly; null = private. */
+  shareToken: string | null
+}
+
+export interface SharedDeckDTO {
+  name: string
+  description: string | null
+  cardCount: number
+  languageName: string
+  languageFlag: string
+  cards: { front: string; back: string | null }[]
 }
 
 export interface SrsDTO {

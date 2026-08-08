@@ -96,6 +96,8 @@ export const decks = pgTable(
     description: text('description'),
     kind: deckKindEnum('kind').notNull().default('grammar'),
     cardCount: integer('card_count').notNull().default(0),
+    // URL-safe token when the deck is shared publicly; null = private.
+    shareToken: text('share_token').unique(),
     // Non-null when pinned to the top of the deck list; value = when pinned.
     pinnedAt: timestamp('pinned_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
