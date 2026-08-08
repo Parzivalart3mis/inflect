@@ -9,6 +9,7 @@ import {
   Pencil,
   Pin,
   Plus,
+  Sparkles,
   Trash2,
   Undo2,
 } from 'lucide-react'
@@ -66,6 +67,11 @@ export default function NoteEditorPage() {
   const [loaded, setLoaded] = useState(false)
   const [cardOpen, setCardOpen] = useState(false)
   const [cardPresetFront, setCardPresetFront] = useState<string | undefined>()
+  const [cardPresetBack, setCardPresetBack] = useState<string | undefined>()
+  const [suggestions, setSuggestions] = useState<
+    { front: string; back: string }[] | null
+  >(null)
+  const [suggesting, setSuggesting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   // Notes open in preview (formatted); a blank/new note opens in edit so you
@@ -123,7 +129,35 @@ export default function NoteEditorPage() {
       return
     }
     setCardPresetFront(selected)
+    setCardPresetBack(undefined)
     setCardOpen(true)
+  }
+
+  function addSuggested(card: { front: string; back: string }) {
+    setCardPresetFront(card.front)
+    setCardPresetBack(card.back)
+    setCardOpen(true)
+  }
+
+  async function suggestCards() {
+    if (suggesting) return
+    setSuggesting(true)
+    try {
+      const data = await mutateJson<{ cards: { front: string; back: string }[] }>(
+        `/api/notes/${noteId}/suggest-cards`,
+        'POST',
+      )
+      setSuggestions(data.cards)
+      if (data.cards.length === 0) {
+        toast.message('No cards found', {
+          description: 'Nothing in this note looked like vocabulary to drill.',
+        })
+      }
+    } catch {
+      toast.error('Could not suggest cards')
+    } finally {
+      setSuggesting(false)
+    }
   }
 
   const { status } = useAutoSave({
@@ -315,24 +349,77 @@ export default function NoteEditorPage() {
           )}
 
           <div className="border-border mt-6 border-t pt-4">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-muted-foreground text-sm font-medium">
                 Linked cards{' '}
                 {data && data.cards.length > 0 && `(${data.cards.length})`}
               </h2>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setCardPresetFront(undefined)
-                  setCardOpen(true)
-                }}
-                disabled={!activeLanguageId}
-              >
-                <Plus className="size-4" />
-                New card from note
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={suggestCards}
+                  disabled={!activeLanguageId || suggesting}
+                >
+                  {suggesting ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
+                  Suggest with AI
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setCardPresetFront(undefined)
+                    setCardPresetBack(undefined)
+                    setCardOpen(true)
+                  }}
+                  disabled={!activeLanguageId}
+                >
+                  <Plus className="size-4" />
+                  New card
+                </Button>
+              </div>
             </div>
+
+            {suggestions && suggestions.length > 0 && (
+              <div className="border-border bg-card mb-3 rounded-xl border p-3">
+                <p className="text-muted-foreground mb-2 flex items-center gap-1.5 text-xs font-medium">
+                  <Sparkles className="text-cta size-3.5" />
+                  AI-suggested cards
+                </p>
+                <ul className="space-y-1.5">
+                  {suggestions.map((c, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-1 text-sm font-medium" dir="auto">
+                          {c.front}
+                        </p>
+                        {c.back && (
+                          <p
+                            className="text-muted-foreground line-clamp-1 text-xs"
+                            dir="auto"
+                          >
+                            {c.back}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="shrink-0"
+                        onClick={() => addSuggested(c)}
+                      >
+                        <Plus className="size-4" />
+                        Add
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {data && data.cards.length === 0 ? (
               <p className="text-muted-foreground text-sm">
                 No cards yet. Turn a rule from this note into a flashcard.
@@ -368,6 +455,7 @@ export default function NoteEditorPage() {
               languageId={activeLanguageId}
               sourceNoteId={noteId}
               presetFront={cardPresetFront}
+              presetBack={cardPresetBack}
               onCreated={() => mutate()}
             />
           )}

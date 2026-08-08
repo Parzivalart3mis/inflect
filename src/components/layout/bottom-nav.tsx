@@ -1,13 +1,14 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { BarChart3, Layers, Mic, NotebookPen } from 'lucide-react'
+import { BarChart3, Home, Layers, Mic, NotebookPen } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { cn } from '@/lib/utils'
 
 const ITEMS = [
+  { href: '/today', label: 'Today', icon: Home },
   { href: '/notes', label: 'Notes', icon: NotebookPen },
   { href: '/cards', label: 'Cards', icon: Layers },
   { href: '/coach', label: 'Coach', icon: Mic },

@@ -31,7 +31,7 @@ const FEATURES = [
 
 export default async function Home() {
   const { userId } = await auth()
-  if (userId) redirect('/notes')
+  if (userId) redirect('/today')
 
   return (
     <main className="min-h-dvh">
