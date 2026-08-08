@@ -15,6 +15,8 @@ import {
 } from './schema'
 
 const HEATMAP_DAYS = 119 // ~17 weeks including today
+const RETENTION_WEEKS = 12
+const DAY_MS = 24 * 60 * 60 * 1000
 
 function dayKey(d: Date): string {
   // Local server day, YYYY-MM-DD.
@@ -91,7 +93,10 @@ export async function getProgress(
         ),
       ),
     db
-      .select({ reviewedAt: reviewEvents.reviewedAt })
+      .select({
+        reviewedAt: reviewEvents.reviewedAt,
+        rating: reviewEvents.rating,
+      })
       .from(reviewEvents)
       .innerJoin(flashcards, eq(reviewEvents.cardId, flashcards.id))
       .innerJoin(decks, eq(flashcards.deckId, decks.id))
@@ -158,6 +163,30 @@ export async function getProgress(
     heatmap.push({ date: k, count: eventCounts.get(k) ?? 0 })
   }
 
+  // Weekly retention: share of reviews rated "good" or "easy" per week.
+  const weekAgg = Array.from({ length: RETENTION_WEEKS }, () => ({
+    total: 0,
+    good: 0,
+  }))
+  for (const e of events) {
+    const daysAgo = Math.floor((now.getTime() - e.reviewedAt.getTime()) / DAY_MS)
+    const wk = Math.floor(daysAgo / 7)
+    if (wk < 0 || wk >= RETENTION_WEEKS) continue
+    weekAgg[wk].total += 1
+    if (e.rating === 'good' || e.rating === 'easy') weekAgg[wk].good += 1
+  }
+  const retention: { week: string; rate: number | null; reviews: number }[] = []
+  for (let i = RETENTION_WEEKS - 1; i >= 0; i--) {
+    const weekStart = new Date(now)
+    weekStart.setDate(now.getDate() - i * 7 - 6)
+    const a = weekAgg[i]
+    retention.push({
+      week: dayKey(weekStart),
+      rate: a.total > 0 ? Math.round((a.good / a.total) * 100) : null,
+      reviews: a.total,
+    })
+  }
+
   const totalSeconds = sessions.reduce((sum, s) => sum + (s.duration ?? 0), 0)
   const lastSessionAt = sessions.reduce<Date | null>((latest, s) => {
     return !latest || s.startedAt > latest ? s.startedAt : latest
@@ -177,5 +206,6 @@ export async function getProgress(
     dueToday,
     reviewHistory: buildHistory(reviewDays, now),
     heatmap,
+    retention,
   }
 }

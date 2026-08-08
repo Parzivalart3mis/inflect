@@ -7,6 +7,7 @@ import {
   Pencil,
   Pin,
   PinOff,
+  Sparkles,
   Trash2,
   Volume2,
 } from 'lucide-react'
@@ -14,6 +15,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
+import { CardExamplesDialog } from '@/components/flashcard/card-examples-dialog'
 import { EditCardDialog } from '@/components/flashcard/edit-card-dialog'
 import {
   DropdownMenu,
@@ -38,6 +40,7 @@ export function DeckCardTile({
   const [flipped, setFlipped] = useState(false)
   const [speaking, setSpeaking] = useState<'front' | 'back' | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [examplesOpen, setExamplesOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -110,6 +113,10 @@ export function DeckCardTile({
                 <MoreVertical className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setExamplesOpen(true)}>
+                  <Sparkles className="size-4" />
+                  Examples &amp; forms
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setEditOpen(true)}>
                   <Pencil className="size-4" />
                   Edit
@@ -187,6 +194,13 @@ export function DeckCardTile({
         onOpenChange={setEditOpen}
         card={card}
         onSaved={onChanged}
+      />
+
+      <CardExamplesDialog
+        open={examplesOpen}
+        onOpenChange={setExamplesOpen}
+        card={card}
+        localeCode={localeCode}
       />
 
       <ConfirmDialog

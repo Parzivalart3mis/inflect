@@ -122,4 +122,6 @@ export interface ProgressDTO {
   reviewHistory: { date: string; reviewed: number }[]
   /** Real per-review counts per day (last ~17 weeks) for the calendar heatmap. */
   heatmap: { date: string; count: number }[]
+  /** Weekly retention: % of reviews rated good/easy (last 12 weeks). */
+  retention: { week: string; rate: number | null; reviews: number }[]
 }

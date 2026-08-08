@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/common/page-header'
 import { BucketDonut } from '@/components/progress/bucket-donut'
 import { ReviewBarChart } from '@/components/progress/review-bar-chart'
 import { ReviewHeatmap } from '@/components/progress/review-heatmap'
+import { RetentionTrend } from '@/components/progress/retention-trend'
 import { StreakCounter } from '@/components/progress/streak-counter'
 import { useLanguage } from '@/components/providers/language-provider'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -53,6 +54,7 @@ export default function ProgressPage() {
             <>
               <BucketDonut buckets={data.buckets} total={data.totalCards} />
               <ReviewHeatmap data={data.heatmap} />
+              <RetentionTrend data={data.retention} />
               <ReviewBarChart data={data.reviewHistory} />
 
               {/* Weakest decks */}
