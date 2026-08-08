@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import {
   Loader2,
+  Mic,
   MoreVertical,
   Pencil,
   Pin,
@@ -17,6 +18,7 @@ import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { CardExamplesDialog } from '@/components/flashcard/card-examples-dialog'
 import { EditCardDialog } from '@/components/flashcard/edit-card-dialog'
+import { PronounceDialog } from '@/components/flashcard/pronounce-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +43,7 @@ export function DeckCardTile({
   const [speaking, setSpeaking] = useState<'front' | 'back' | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [examplesOpen, setExamplesOpen] = useState(false)
+  const [pronounceOpen, setPronounceOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -117,6 +120,12 @@ export function DeckCardTile({
                   <Sparkles className="size-4" />
                   Examples &amp; forms
                 </DropdownMenuItem>
+                {card.back && (
+                  <DropdownMenuItem onClick={() => setPronounceOpen(true)}>
+                    <Mic className="size-4" />
+                    Practice pronunciation
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => setEditOpen(true)}>
                   <Pencil className="size-4" />
                   Edit
@@ -202,6 +211,15 @@ export function DeckCardTile({
         card={card}
         localeCode={localeCode}
       />
+
+      {card.back && (
+        <PronounceDialog
+          open={pronounceOpen}
+          onOpenChange={setPronounceOpen}
+          card={card}
+          localeCode={localeCode}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmDelete}
