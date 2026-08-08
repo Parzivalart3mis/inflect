@@ -106,8 +106,8 @@ export function ShareDeckDialog({
         </div>
 
         {token && (
-          <div className="space-y-2">
-            <div className="border-border bg-muted/40 flex items-center gap-2 rounded-lg border px-3 py-2">
+          <div className="min-w-0 space-y-2">
+            <div className="border-border bg-muted/40 flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2">
               <span className="text-muted-foreground min-w-0 flex-1 truncate text-sm">
                 {shareUrl}
               </span>
