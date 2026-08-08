@@ -1,10 +1,11 @@
 'use client'
 
-import { ChevronLeft, Clock, Layers } from 'lucide-react'
+import { ChevronLeft, Clock, Layers, Loader2, Plus, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useState } from 'react'
 import useSWR from 'swr'
+import { toast } from 'sonner'
 
 import { ErrorState } from '@/components/common/error-state'
 import { TranscriptView } from '@/components/coach/transcript-view'
@@ -12,8 +13,14 @@ import { CreateCardDialog } from '@/components/flashcard/create-card-dialog'
 import { useLanguage } from '@/components/providers/language-provider'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { mutateJson } from '@/lib/fetcher'
 import { formatMinutes, formatDate } from '@/lib/format'
 import type { CoachSessionDTO } from '@/types/dto'
+
+interface Recap {
+  summary: string
+  cards: { front: string; back: string }[]
+}
 
 export default function SessionTranscriptPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
@@ -24,10 +31,36 @@ export default function SessionTranscriptPage() {
 
   const [cardOpen, setCardOpen] = useState(false)
   const [presetFront, setPresetFront] = useState('')
+  const [presetBack, setPresetBack] = useState('')
+  const [recap, setRecap] = useState<Recap | null>(null)
+  const [recapLoading, setRecapLoading] = useState(false)
 
   function saveSelection(text: string) {
     setPresetFront(text)
+    setPresetBack('')
     setCardOpen(true)
+  }
+
+  function addRecapCard(card: { front: string; back: string }) {
+    setPresetFront(card.front)
+    setPresetBack(card.back)
+    setCardOpen(true)
+  }
+
+  async function generateRecap() {
+    if (recapLoading) return
+    setRecapLoading(true)
+    try {
+      const data = await mutateJson<Recap>(
+        `/api/coach/sessions/${sessionId}/recap`,
+        'POST',
+      )
+      setRecap(data)
+    } catch {
+      toast.error('Could not generate a recap')
+    } finally {
+      setRecapLoading(false)
+    }
   }
 
   return (
@@ -92,6 +125,78 @@ export default function SessionTranscriptPage() {
                 transcript={data.transcript}
                 onSaveSelection={saveSelection}
               />
+
+              {/* AI recap */}
+              <div className="border-border mt-6 border-t pt-4">
+                {!recap ? (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={generateRecap}
+                    disabled={recapLoading}
+                  >
+                    {recapLoading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-4" />
+                    )}
+                    {recapLoading ? 'Reviewing session…' : 'Generate AI recap'}
+                  </Button>
+                ) : (
+                  <div className="space-y-4">
+                    {recap.summary && (
+                      <div className="border-border bg-card rounded-2xl border p-4">
+                        <h2 className="font-heading mb-1.5 flex items-center gap-2 text-sm font-semibold">
+                          <Sparkles className="text-cta size-4" />
+                          Recap
+                        </h2>
+                        <p className="text-muted-foreground text-sm leading-relaxed">
+                          {recap.summary}
+                        </p>
+                      </div>
+                    )}
+                    {recap.cards.length > 0 && (
+                      <div>
+                        <h3 className="text-muted-foreground mb-2 text-xs font-medium">
+                          Suggested cards
+                        </h3>
+                        <ul className="space-y-2">
+                          {recap.cards.map((c, i) => (
+                            <li
+                              key={i}
+                              className="border-border bg-card flex items-center gap-2 rounded-lg border px-3 py-2"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="line-clamp-1 text-sm font-medium" dir="auto">
+                                  {c.front}
+                                </p>
+                                {c.back && (
+                                  <p
+                                    className="text-muted-foreground line-clamp-1 text-xs"
+                                    dir="auto"
+                                  >
+                                    {c.back}
+                                  </p>
+                                )}
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="shrink-0"
+                                onClick={() => addRecapCard(c)}
+                                disabled={!activeLanguageId}
+                              >
+                                <Plus className="size-4" />
+                                Add
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           )}
 
@@ -101,6 +206,7 @@ export default function SessionTranscriptPage() {
               onOpenChange={setCardOpen}
               languageId={activeLanguageId}
               presetFront={presetFront}
+              presetBack={presetBack}
             />
           )}
         </>

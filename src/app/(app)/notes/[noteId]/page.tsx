@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { toast } from 'sonner'
 
@@ -47,6 +47,19 @@ export default function NoteEditorPage() {
     note: NoteDTO
     cards: CardDTO[]
   }>(noteId ? `/api/notes/${noteId}` : null)
+
+  // Title index for resolving [[wiki links]] in the preview.
+  const { data: titleData } = useSWR<{
+    notes: { id: string; title: string }[]
+  }>(activeLanguageId ? `/api/notes/titles?languageId=${activeLanguageId}` : null)
+  const noteLinks = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const n of titleData?.notes ?? []) {
+      const key = n.title.trim().toLowerCase()
+      if (key && !m.has(key)) m.set(key, n.id) // first wins on duplicate titles
+    }
+    return m
+  }, [titleData])
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -297,6 +310,7 @@ export default function NoteEditorPage() {
             <MarkdownView
               content={content.trim() ? content : '*Nothing to preview yet.*'}
               className="mt-4 flex-1"
+              noteLinks={noteLinks}
             />
           )}
 

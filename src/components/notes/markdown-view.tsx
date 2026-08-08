@@ -5,6 +5,16 @@ import remarkGfm from 'remark-gfm'
 
 import { cn } from '@/lib/utils'
 
+/** Replace [[Title]] with a link to the matching note (by lowercased title). */
+function resolveWikiLinks(md: string, links?: Map<string, string>): string {
+  if (!links || links.size === 0) return md
+  return md.replace(/\[\[([^\]\n]+)\]\]/g, (_full, raw: string) => {
+    const title = raw.trim()
+    const id = links.get(title.toLowerCase())
+    return id ? `[${title}](/notes/${id})` : title
+  })
+}
+
 /**
  * Renders note markdown to formatted, styled output. Raw HTML is NOT enabled
  * (react-markdown escapes it by default) so note content can't inject markup —
@@ -13,10 +23,14 @@ import { cn } from '@/lib/utils'
 export function MarkdownView({
   content,
   className,
+  noteLinks,
 }: {
   content: string
   className?: string
+  /** lowercased note title -> id, for resolving [[wiki links]]. */
+  noteLinks?: Map<string, string>
 }) {
+  const rendered = resolveWikiLinks(content, noteLinks)
   return (
     <div
       className={cn('note-content text-[16px] leading-relaxed', className)}
@@ -68,14 +82,19 @@ export function MarkdownView({
               {...props}
             />
           ),
-          a: (props) => (
-            <a
-              className="text-primary underline underline-offset-2"
-              target="_blank"
-              rel="noopener noreferrer"
-              {...props}
-            />
-          ),
+          a: ({ href, ...props }) => {
+            const external = !!href && /^https?:/i.test(href)
+            return (
+              <a
+                href={href}
+                className="text-primary underline underline-offset-2"
+                {...(external
+                  ? { target: '_blank', rel: 'noopener noreferrer' }
+                  : {})}
+                {...props}
+              />
+            )
+          },
           hr: (props) => <hr className="border-border my-4" {...props} />,
           table: (props) => (
             <div className="my-3 overflow-x-auto">
@@ -96,7 +115,7 @@ export function MarkdownView({
           ),
         }}
       >
-        {content}
+        {rendered}
       </ReactMarkdown>
     </div>
   )

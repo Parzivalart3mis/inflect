@@ -66,8 +66,8 @@ export function BulkImportDialog({
         <DialogHeader>
           <DialogTitle>Bulk import</DialogTitle>
           <DialogDescription>
-            One card per line. Separate the rule and its exception with a tab or
-            a pipe <code className="font-mono">|</code>.
+            One card per line. Separate the word (front) and its pronunciation
+            (back) with a tab or a pipe <code className="font-mono">|</code>.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-2 py-1">
@@ -76,15 +76,43 @@ export function BulkImportDialog({
             id="bulk"
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
-            rows={8}
+            rows={7}
             dir="auto"
-            placeholder={'ser = permanent traits | except emotions\nestar = temporary states\nel/la = definite articles'}
+            placeholder={'hello | hola (OH-lah)\nthank you | gracias (GRAH-syahs)\ngoodbye | adiós (ah-DYOHS)'}
             className="font-mono text-sm"
           />
           <p className="text-muted-foreground text-xs">
             {preview.cards.length} card
             {preview.cards.length === 1 ? '' : 's'} ready
-            {preview.skipped > 0 && ` · ${preview.skipped} skipped`}
+            {preview.skipped > 0 &&
+              ` · ${preview.skipped} line${preview.skipped === 1 ? '' : 's'} skipped`}
+          </p>
+
+          {preview.cards.length > 0 && (
+            <div className="border-border max-h-40 overflow-y-auto rounded-lg border">
+              <table className="w-full text-xs">
+                <tbody>
+                  {preview.cards.slice(0, 8).map((c, i) => (
+                    <tr key={i} className="border-border/60 border-b last:border-0">
+                      <td className="px-2 py-1 font-medium" dir="auto">
+                        {c.front}
+                      </td>
+                      <td className="text-muted-foreground px-2 py-1" dir="auto">
+                        {c.back ?? '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {preview.cards.length > 8 && (
+                <p className="text-muted-foreground px-2 py-1 text-[11px]">
+                  +{preview.cards.length - 8} more…
+                </p>
+              )}
+            </div>
+          )}
+          <p className="text-muted-foreground text-[11px]">
+            Duplicate words already in this deck are skipped automatically.
           </p>
         </div>
         <DialogFooter>

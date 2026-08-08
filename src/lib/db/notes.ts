@@ -112,6 +112,17 @@ export async function listNotes({
   }
 }
 
+/** Lightweight id + title list for resolving [[wiki-style]] note links. */
+export async function listNoteTitles(
+  userId: string,
+  languageId: string,
+): Promise<{ id: string; title: string }[]> {
+  return db
+    .select({ id: notes.id, title: notes.title })
+    .from(notes)
+    .where(and(eq(notes.userId, userId), eq(notes.languageId, languageId)))
+}
+
 export async function getOwnedNote(userId: string, noteId: string) {
   return db.query.notes.findFirst({
     where: and(eq(notes.id, noteId), eq(notes.userId, userId)),
