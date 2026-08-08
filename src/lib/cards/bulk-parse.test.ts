@@ -39,4 +39,32 @@ describe('parseBulkCards', () => {
   it('returns nothing for empty input', () => {
     expect(parseBulkCards('   \n  ')).toEqual({ cards: [], skipped: 0 })
   })
+
+  it('imports an Anki plain-text export: skips headers, uses Front/Back, strips HTML', () => {
+    const raw = [
+      '#separator:tab',
+      '#html:true',
+      '#columns:Front\tBack\tTags',
+      'hola\t<b>hello</b>',
+      'gracias\tthank you<br>(informal)\tgreeting',
+    ].join('\n')
+    const { cards } = parseBulkCards(raw)
+    expect(cards).toEqual([
+      { front: 'hola', back: 'hello' },
+      { front: 'gracias', back: 'thank you\n(informal)' },
+    ])
+  })
+
+  it('honors a comma separator from the Anki header', () => {
+    const { cards } = parseBulkCards('#separator:comma\nhola,hello\ngracias,thanks')
+    expect(cards).toEqual([
+      { front: 'hola', back: 'hello' },
+      { front: 'gracias', back: 'thanks' },
+    ])
+  })
+
+  it('decodes HTML entities in fields', () => {
+    const { cards } = parseBulkCards('#html:true\nTom &amp; Jerry\tpair')
+    expect(cards).toEqual([{ front: 'Tom & Jerry', back: 'pair' }])
+  })
 })

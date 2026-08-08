@@ -66,8 +66,9 @@ export function BulkImportDialog({
         <DialogHeader>
           <DialogTitle>Bulk import</DialogTitle>
           <DialogDescription>
-            One card per line. Separate the word (front) and its pronunciation
-            (back) with a tab or a pipe <code className="font-mono">|</code>.
+            One card per line — separate the word (front) and its pronunciation
+            (back) with a tab or a pipe <code className="font-mono">|</code>. You
+            can also paste an Anki export (File → Export → Notes in Plain Text).
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-2 py-1">
